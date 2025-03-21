@@ -28,6 +28,7 @@ SpatialLM is a 3D large language model designed to process 3D point cloud data a
 
 <div align="center">
   <video src="https://github.com/user-attachments/assets/c0218d6a-f676-41f8-ae76-bba228866306" poster="figures/cover.png"> </video>
+  <p><i>SpatialLM reconstructs 3D layout from a monocular RGB video with MASt3R-SLAM. Results aligned to video with GT cameras for visualization.</i></p>
 </div>
 
 ## SpatialLM Models
