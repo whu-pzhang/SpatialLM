@@ -117,6 +117,10 @@ python inference.py --point_cloud SpatialLM-Testset/pcd --output SpatialLM-Tests
 python eval.py --metadata SpatialLM-Testset/test.csv --gt_dir SpatialLM-Testset/layout --pred_dir SpatialLM-Testset/pred --label_mapping SpatialLM-Testset/benchmark_categories.tsv
 ```
 
+### Example using a custom video
+
+We provide an example of how to use our model to estimate scene layout starting from a RGB video with the newly released [SLAM3R](https://github.com/PKU-VCL-3DV/SLAM3R) in [EXAMPLE.md](EXAMPLE.md).
+
 ## SpatialLM Testset
 
 We provide a test set of 107 preprocessed point clouds, reconstructed from RGB videos using [MASt3R-SLAM](https://github.com/rmurai0610/MASt3R-SLAM). SpatialLM-Testset is quite challenging compared to prior clean RGBD scans datasets due to the noises and occlusions in the point clouds reconstructed from monocular RGB videos.
