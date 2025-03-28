@@ -8,6 +8,20 @@ Please refer to the [SLAM3R Replica Example](https://github.com/PKU-VCL-3DV/SLAM
 
 You can set `sample_freq` in this [line](https://github.com/PKU-VCL-3DV/SLAM3R/blob/3831478e15b83509f3f317abc1d4f7bd3cc21e2d/scripts/demo_replica.sh#L8) to 2 to decrease the GPU memory usage and speed up the reconstruction. And you can also try increase the `CONF_THRES_L2W` threshold [here](https://github.com/PKU-VCL-3DV/SLAM3R/blob/3831478e15b83509f3f317abc1d4f7bd3cc21e2d/scripts/demo_replica.sh#L22) to get cleaner point cloud.
 
+If you are using MASt3R-SLAM, we recommend you to increase the `C_conf_threshold` and add some point cloud cleaning steps for each keyframe point cloud exportation in [line](https://github.com/rmurai0610/MASt3R-SLAM/blob/c3d0d5b67bf51d558d7640ff6032407f68041f92/mast3r_slam/evaluate.py#L65), such as removing statistical outliers with following code. These will generally help to get cleaner point clouds.
+
+```python
+...
+pcd = o3d.geometry.PointCloud()
+pcd.points = o3d.utility.Vector3dVector(valid_pts)
+pcd.colors = o3d.utility.Vector3dVector(valid_colors)
+pcd, trace = pcd.remove_statistical_outlier(nb_neighbors=10, std_ratio=1.5)
+points = np.asarray(pcd.points)
+color = (np.asarray(pcd.colors) * 255.0).astype(np.uint8)
+pointclouds.append(points)
+colors.append(color)
+```
+
 ## 2. Align the output point cloud
 
 In the current version of SpatialLM, input point clouds are considered axis-aligned where the z-axis is the up axis. The input point clouds should follow the ScanNet scenes orientation convension, which is "_Transforms scans to z-up alignment for scans and tries to align walls to x-y planes._" in [Alignment](https://github.com/ScanNet/ScanNet/tree/master/Alignment). Refer to [Issue #7](https://github.com/manycore-research/SpatialLM/issues/7) for more details.
