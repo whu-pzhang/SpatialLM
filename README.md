@@ -119,7 +119,7 @@ python eval.py --metadata SpatialLM-Testset/test.csv --gt_dir SpatialLM-Testset/
 
 ### Example using a custom video
 
-We provide an example of how to use our model to estimate scene layout starting from a RGB video with the newly released [SLAM3R](https://github.com/PKU-VCL-3DV/SLAM3R) in [EXAMPLE.md](EXAMPLE.md).
+We provide an example of how to use our model to estimate scene layout starting from a RGB video with the newly released [SLAM3R](https://github.com/PKU-VCL-3DV/SLAM3R) in [EXAMPLE.md](EXAMPLE.md). These steps work for MASt3R-SLAM, and other reconstruction methods as well.
 
 ## SpatialLM Testset
 

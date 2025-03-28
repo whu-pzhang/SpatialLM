@@ -1,6 +1,6 @@
 # Example using a custom video
 
-A new open-source SLAM system [SLAM3R](https://github.com/PKU-VCL-3DV/SLAM3R) just released. We found it is great for reconstructing point clouds from RGB inputs as well. Here we provide an example of how to use it to reconstruct a point cloud from a video, and use our model to estimate the layout of the scene. Following steps work for MASt3R-SLAM as well.
+A new open-source SLAM system [SLAM3R](https://github.com/PKU-VCL-3DV/SLAM3R) just released. We found it is great for reconstructing point clouds from RGB inputs as well. Here we provide an example of how to use it to reconstruct a point cloud from a video, and use our model to estimate the layout of the scene. Following steps work for MASt3R-SLAM, and other reconstruction methods as well.
 
 ## 1. Reconstruct a point cloud with SLAM3R
 
