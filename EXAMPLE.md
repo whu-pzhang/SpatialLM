@@ -1,6 +1,6 @@
 # Example using a custom video
 
-A new open-source SLAM system [SLAM3R](https://github.com/PKU-VCL-3DV/SLAM3R) just released. We found it is great for reconstructing point clouds from RGB inputs as well. Here we provide an example of how to use it to reconstruct a point cloud from a video, and use our model to estimate the layout of the scene.
+A new open-source SLAM system [SLAM3R](https://github.com/PKU-VCL-3DV/SLAM3R) just released. We found it is great for reconstructing point clouds from RGB inputs as well. Here we provide an example of how to use it to reconstruct a point cloud from a video, and use our model to estimate the layout of the scene. Following steps work for MASt3R-SLAM as well.
 
 ## 1. Reconstruct a point cloud with SLAM3R
 
@@ -28,8 +28,8 @@ In the current version of SpatialLM, input point clouds are considered axis-alig
 
 For now, you can choose your way to align the point cloud. We recommend you to check out [VanishingPoint Estimation](https://github.com/yanconglin/VanishingPoint_HoughTransform_GaussianSphere), [Manhattan Frame Estimation from video](https://github.com/jstraub/rtmf), Manhattan Frame Estimation from surface normals (ref paper: Globally Optimal Manhattan Frame Estimation in Real-time, Manhattan World Inference in the Space of Surface Normals) for estimating the Manhattan Frame from image, video or point cloud. And more recent methods such as [U-ARE-ME](https://github.com/callum-rhodes/U-ARE-ME), [Perspective Fields for Single Image Camera Calibration](https://github.com/jinlinyi/PerspectiveFields). Or even use tools like Blender to manually align the point cloud.
 
-| Before Alignment | After Alignment |
-|:---------------:|:---------------:|
+|                     Before Alignment                     |                    After Alignment                    |
+| :------------------------------------------------------: | :---------------------------------------------------: |
 | ![Point cloud before alignment](./figures/unaligned.jpg) | ![Point cloud after alignment](./figures/aligned.jpg) |
 
 ## 3. Ensure the scale of the point cloud
@@ -69,8 +69,8 @@ python visualize.py --point_cloud scaled_point_cloud.ply --layout replica_layout
 rerun replica_layout.rrd
 ```
 
-| View 1 | View 2 |
-|:---------------:|:---------------:|
+|                      View 1                      |                      View 2                      |
+| :----------------------------------------------: | :----------------------------------------------: |
 | ![Result view 1](./figures/replica_example1.jpg) | ![Result view 2](./figures/replica_example2.jpg) |
 
 ## 5. Summary
@@ -78,6 +78,3 @@ rerun replica_layout.rrd
 In this example, we demonstrated how to estimate scene layout from a custom video. The workflow involves four main steps: reconstructing a point cloud from video, aligning it to match the ScanNet orientation convention, scale the point cloud to a roughly metric accurate scale, and finally running our layout estimation model. We will keep improving to make these steps more automated, efficient and robust.
 
 Note that in this example, one sofa is not detected in the prediction. This is because our training data primarily consists of Chinese residential apartments where living rooms typically feature a single main sofa facing a TV, which is on the other side of the room. The model currently has its limitation on generalize very well to more diverse scenarios, such as non-standard layouts, cluttered spaces, or outdoor environments. We are actively working on it, and will try to improve the model's performance to more diverse scenes in the next release.
-
-
-
