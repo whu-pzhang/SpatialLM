@@ -2,312 +2,409 @@
 <html>
 
 <head>
-  <meta charset="utf-8">
-  <meta property="og:image" content="static/images/pipeline.png" />
-  <!-- Facebook automatically scrapes this. Go to https://developers.facebook.com/tools/debug/ if you update and want to force Facebook to rescrape. -->
-  <meta property="og:title" content="SpatialLM: Large Language Model for Spatial Understanding" />
+    <meta charset="utf-8">
+    <!-- Facebook automatically scrapes this. Go to https://developers.facebook.com/tools/debug/ if you update and want to force Facebook to rescrape. -->
+    <meta property="og:title" content="SpatialLM: Training Large Language Models for Structured Indoor Modeling" />
+    <meta property="og:description"
+        content="SpatialLM is a large language model designed to process 3D point cloud data and generate structured scene descriptions." />
+    <meta property="og:image" content="static/images/pipeline.jpg" />
+    <meta property="og:url" content="https://manycore-research.github.io/SpatialLM/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="SpatialLM" />
+    <meta name="keywords" content="SpatialLM, Structured Indoor Modeling, Large Language Models, Spatial Understanding">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SpatialLM</title>
 
-  <meta name="keywords" content="SpatialLM, Large Language Model, Spatial Understanding">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>SpatialLM</title>
+    <style>
+        .custom-hero {
+            padding: -10px 0;
+            /* Adjust these values to reduce the padding */
+        }
 
-  <style>
-    .custom-hero {
-      padding: -10px 0; /* Adjust these values to reduce the padding */
-    }
+        .custom-hero-body {
+            padding: 0px 0;
+            /* Adjust these values to reduce the padding */
+        }
 
-    .custom-hero-body {
-      padding: 0px 0; /* Adjust these values to reduce the padding */
-    }
+        .publication-title {
+            margin-top: -50px;
+            /* Adjust this value to reduce the margin below the title */
+        }
 
-    .publication-title {
-      margin-top: -50px; /* Adjust this value to reduce the margin below the title */
-    }
+        .publication-authors {
+            margin-bottom: 0px;
+            /* Adjust this value to reduce the margin between author blocks */
+        }
 
-    .publication-authors {
-      margin-bottom: 0px; /* Adjust this value to reduce the margin between author blocks */
-    }
+        .publication-links {
+            margin-bottom: -10px;
+            /* Adjust this value to reduce the margin above the links */
+        }
+    </style>
 
-    .publication-links {
-      margin-bottom: -10px; /* Adjust this value to reduce the margin above the links */
-    }
-  </style>
+    <!-- Global site tag (gtag.js) - Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-HKRS7BH51M"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
 
-  <!-- Global site tag (gtag.js) - Google Analytics -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-HKRS7BH51M"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag() { dataLayer.push(arguments); }
-    gtag('js', new Date());
-    gtag('config', 'G-HKRS7BH51M');
-  </script>
+        function gtag() {
+            dataLayer.push(arguments);
+        }
+        gtag('js', new Date());
+        gtag('config', 'G-HKRS7BH51M');
+    </script>
 
-  <link href="https://fonts.googleapis.com/css?family=Google+Sans|Noto+Sans|Castoro" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css?family=Google+Sans|Noto+Sans|Castoro" rel="stylesheet">
 
-  <link rel="stylesheet" href="./static/css/bulma.min.css">
-  <link rel="stylesheet" href="./static/css/bulma-carousel.min.css">
-  <link rel="stylesheet" href="./static/css/bulma-slider.min.css">
-  <link rel="stylesheet" href="./static/css/fontawesome.all.min.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css">
-  <link rel="stylesheet" href="./static/css/index.css">
-  <link rel="stylesheet" href="./static/css/style.css">
-  <link rel="icon" href="./static/images/icon.png">
+    <link rel="stylesheet" href="./static/css/bulma.min.css">
+    <link rel="stylesheet" href="./static/css/bulma-carousel.min.css">
+    <link rel="stylesheet" href="./static/css/bulma-slider.min.css">
+    <link rel="stylesheet" href="./static/css/fontawesome.all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css">
+    <link rel="stylesheet" href="./static/css/index.css">
+    <link rel="stylesheet" href="./static/css/style.css">
+    <link rel="icon" href="./static/images/icon.png">
 
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-  <script defer src="./static/js/fontawesome.all.min.js"></script>
-  <script src="./static/js/bulma-carousel.min.js"></script>
-  <script src="./static/js/bulma-slider.min.js"></script>
-  <script src="./static/js/index.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script defer src="./static/js/fontawesome.all.min.js"></script>
+    <script src="./static/js/bulma-carousel.min.js"></script>
+    <script src="./static/js/bulma-slider.min.js"></script>
+    <script src="./static/js/index.js"></script>
 </head>
 
 <nav class="navbar" role="navigation" aria-label="main navigation">
-  <div class="navbar-brand">
-    <a role="button" class="navbar-burger" aria-label="menu" aria-expanded="false">
-      <span aria-hidden="true"></span>
-      <span aria-hidden="true"></span>
-      <span aria-hidden="true"></span>
-    </a>
-  </div>
-  <div class="navbar-menu">
-    <div class="navbar-start" style="flex-grow: 1; justify-content: center;">
-      <a class="navbar-item" href="https://github.com/manycore-research">
-      <span class="icon">
-          <i class="fab fa-github"></i>
-      </span>
-      </a>
-
-      <div class="navbar-item has-dropdown is-hoverable">
-        <a class="navbar-link">
-          More Research
+    <div class="navbar-brand">
+        <a role="button" class="navbar-burger" aria-label="menu" aria-expanded="false">
+            <span aria-hidden="true"></span>
+            <span aria-hidden="true"></span>
+            <span aria-hidden="true"></span>
         </a>
-        <div class="navbar-dropdown">
-          <a class="navbar-item" href="https://manycore-research.github.io/faceformer">
-            faceformer
-          </a>
-          <a class="navbar-item" href="https://manycore-research.github.io/cstr">
-            cstr
-          </a>
-          <a class="navbar-item" href="https://manycore-research.github.io/PlankAssembly">
-            PlankAssembly
-          </a>
-          <a class="navbar-item" href="https://manycore-research.github.io/CAD2Program">
-            CAD2Program
-          </a>
-          <a class="navbar-item" href="https://manycore-research.github.io/SpatialLM">
-            SpatialLM
-          </a>
-        </div>
-      </div>
     </div>
-  </div>
+    <div class="navbar-menu">
+        <div class="navbar-start" style="flex-grow: 1; justify-content: center;">
+            <a class="navbar-item" href="https://github.com/manycore-research">
+                <span class="icon">
+                    <i class="fab fa-github"></i>
+                </span>
+            </a>
+
+            <div class="navbar-item has-dropdown is-hoverable">
+                <a class="navbar-link">
+                    More Research
+                </a>
+                <div class="navbar-dropdown">
+                    <a class="navbar-item" href="https://manycore-research.github.io/faceformer">
+                        faceformer
+                    </a>
+                    <a class="navbar-item" href="https://manycore-research.github.io/cstr">
+                        cstr
+                    </a>
+                    <a class="navbar-item" href="https://manycore-research.github.io/PlankAssembly">
+                        PlankAssembly
+                    </a>
+                    <a class="navbar-item" href="https://manycore-research.github.io/CAD2Program">
+                        CAD2Program
+                    </a>
+                    <a class="navbar-item" href="https://manycore-research.github.io/SpatialLM">
+                        SpatialLM
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
 </nav>
 
 <body>
 
-  <section class="hero custom-hero">
-    <div class="hero-body custom-hero-body">
-      <div class="container is-max-desktop">
-        <div class="columns is-centered">
-          <div class="column has-text-centered">
-            <h1 class="title is-2 publication-title">SpatialLM: Large Language Model for<br>Spatial Understanding</h1>
-            <div class="is-size-5 publication-authors">
-              <span class="author-block">
-                Manycore Research Team
-              </span>
+    <section class="hero custom-hero">
+        <div class="hero-body custom-hero-body">
+            <div class="container is-max-desktop">
+                <div class="columns is-centered">
+                    <div class="column has-text-centered">
+                        <h1 class="title is-2 publication-title"><span class="dnerf">SpatialLM</span>: Training Large
+                            Language Models for Structured Indoor Modeling</h1>
+                        <div class="is-size-5 publication-authors">
+                            <div class="is-size-5 publication-authors">
+                                <span class="author-block">
+                                    <a href="https://sammaoys.github.io/">Yongsen Mao</a><sup>1*</sup>,
+                                </span>
+                                <span class="author-block">
+                                    Junhao Zhong<sup>1*</sup>,
+                                </span>
+                                <span class="author-block">
+                                    <a href="https://fangchuan.github.io/">Chuan Fang</a><sup>2</sup>,
+                                </span>
+                                <span class="author-block">
+                                    <a href="https://bertjiazheng.github.io">Jia Zheng</a><sup>1</sup>,
+                                </span>
+                                <span class="author-block">
+                                    Rui Tang<sup>1</sup>,
+                                </span>
+                                <span class="author-block">
+                                    Hao Zhu<sup>1</sup>,
+                                </span>
+                                <span class="author-block">
+                                    <a href="https://pingtan.people.ust.hk/index.html">Ping Tan</a><sup>2</sup>,
+                                </span>
+                                <span class="author-block">
+                                    <a href="https://zihan-z.github.io">Zihan Zhou</a><sup>1</sup>
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="is-size-5 publication-authors">
+                            <span class="author-block">
+                                <sup>1</sup><a href="https://manycoretech.com">Manycore Tech Inc.</a>,
+                            </span>
+                            <span class="author-block">
+                                <sup>2</sup>Hong Kong University of Science and Technology
+                            </span>
+                        </div>
+
+                        <div class="is-size-6 publication-authors">
+                            <span class="author-block"><sup>*</sup>Co-first authors</span>
+                        </div>
+
+                        <div class="column has-text-centered">
+                            <div class="publication-links">
+                                <!-- arXiv Link. -->
+                                <span class="link-block">
+                                    <a href="https://arxiv.org/abs/2506.07491"
+                                        class="external-link button is-normal is-rounded is-dark">
+                                        <span class="icon">
+                                            <i class="ai ai-arxiv"></i>
+                                        </span>
+                                        <span>arXiv</span>
+                                    </a>
+                                </span>
+                                <!-- Code Link. -->
+                                <span class="link-block">
+                                    <a href="https://github.com/manycore-research/SpatialLM"
+                                        class="external-link button is-normal is-rounded is-dark">
+                                        <span class="icon">
+                                            <i class="fab fa-github"></i>
+                                        </span>
+                                        <span>Code</span>
+                                    </a>
+                                </span>
+                                <!-- Model Link. -->
+                                <span class="link-block">
+                                    <a href="https://huggingface.co/manycore-research/SpatialLM1.1-Qwen-0.5B"
+                                        class="external-link button is-normal is-rounded is-dark">
+                                        <span class="icon">
+                                            <img src="./static/images/huggingface_logo-noborder.svg" alt="Hugging Face"
+                                                width="18" height="18" />
+                                        </span>
+                                        <span>Model</span>
+                                    </a>
+                                </span>
+                                <!-- Dataset Link. -->
+                                <span class="link-block">
+                                    <a href="https://huggingface.co/datasets/manycore-research/SpatialLM-Testset"
+                                        class="external-link button is-normal is-rounded is-dark">
+                                        <span class="icon">
+                                            <i class="fa fa-database"></i>
+                                        </span>
+                                        <span>Testset</span>
+                                    </a>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
+        </div>
+    </section>
 
-            <div class="is-size-5 publication-authors">
-              <span class="author-block"><a href="https://manycoretech.com/">Manycore Tech Inc.</a></span>
+    <section class="hero teaser">
+        <div class="container is-max-desktop">
+            <!-- Teaser. -->
+            <div class="columns is-centered has-text-centered">
+                <div class="column is-four-fifths">
+                    <video poster="./static/images/cover.png" id="program" autoplay muted loop playsinline
+                        height="100%">
+                        <source src="https://manycore-research-azure.kujiale.com/manycore-research/SpatialLM/teaser.mp4"
+                            type="video/mp4">
+                    </video>
+                    <div class="subtitle has-text-centered">
+                        <p>
+                            <span class="dnerf">SpatialLM</span> reconstructs 3D layout from a monocular RGB video with
+                            MASt3R-SLAM
+                            Results aligned to video with GT cameras for visualization
+                        </p>
+                    </div>
+                </div>
             </div>
+            <!--/ Teaser. -->
+        </div>
+    </section>
 
-            <div class="column has-text-centered">
-              <div class="publication-links">
-                 <!-- Model Link. -->
-              <span class="link-block">
-                <a href="https://huggingface.co/manycore-research/SpatialLM-Llama-1B"
-                   class="external-link button is-normal is-rounded is-dark">
-                  <span class="icon">
-                    <img src="./static/images/huggingface_logo-noborder.svg" alt="Hugging Face" width="18" height="18">
-                  </span>
-                  <span>Model</span>
-                </a>
-              </span>
-              <!-- Code Link. -->
-              <span class="link-block">
-                <a href="https://github.com/manycore-research/SpatialLM"
-                   class="external-link button is-normal is-rounded is-dark">
-                  <span class="icon">
-                      <i class="fab fa-github"></i>
-                  </span>
-                  <span>Code</span>
-                  </a>
-              </span>
-              <!-- Dataset Link. -->
-              <span class="link-block">
-                <a href="https://huggingface.co/datasets/manycore-research/SpatialLM-TestSet"
-                   class="external-link button is-normal is-rounded is-dark">
-                  <span class="icon">
-                      <i class="fa fa-database"></i>
-                  </span>
-                  <span>Data</span>
-                  </a>
-                </span>
-              </div>
+    <section class="section">
+        <div class="container is-max-desktop">
+            <!-- Abstract. -->
+            <div class="columns is-centered has-text-centered">
+                <div class="column is-four-fifths">
+                    <h2 class="title is-3">Introduction</h2>
+                    <div class="content has-text-justified">
+                        <p>
+                            <span class="dnerf">SpatialLM</span> is a 3D large language model designed to process 3D
+                            point cloud data and generate
+                            structured 3D scene understanding outputs. These outputs include architectural elements like
+                            walls, doors, windows, and oriented object bounding boxes with their semantic categories.
+                            Unlike previous methods that require specialized equipment for data collection, <span
+                                class="dnerf">SpatialLM</span>
+                            can handle point clouds from diverse sources such as monocular video sequences, RGBD images,
+                            and LiDAR sensors. This multimodal architecture effectively bridges the gap between
+                            unstructured 3D geometric data and structured 3D representations, offering high-level
+                            semantic understanding. It enhances spatial reasoning capabilities for applications in
+                            embodied robotics, autonomous navigation, and other complex 3D scene analysis tasks.
+                        </p>
+                    </div>
+                </div>
             </div>
-          </div>
+            <!--/ Abstract. -->
         </div>
-      </div>
-    </div>
-  </section>
+    </section>
 
-  <section class="hero teaser">
-    <div class="container is-max-desktop">
-      <!-- Teaser. -->
-      <div class="columns is-centered has-text-centered">
-        <div class="column is-four-fifths">
-          <video poster="./static/images/cover.png" id="program" autoplay muted loop playsinline height="100%">
-            <source src="https://manycore-research-azure.kujiale.com/manycore-research/SpatialLM/teaser.mp4" type="video/mp4">
-          </video>
-          <div class="subtitle has-text-centered">
-            <p>
-              <span class="dnerf">SpatialLM</span> reconstructs 3D layout from a monocular RGB video with MASt3R-SLAM
-              Results aligned to video with GT cameras for visualization
-            </p>
-          </div>
+    <section class="section">
+        <div class="container is-max-desktop">
+            <!-- Pipeline. -->
+            <div class="columns is-centered has-text-centered">
+                <div class="column is-four-fifths">
+                    <h2 class="title is-3"><span class="dnerf">SpatialLM</span> Pipeline</h2>
+                    <img class="input-img" src="static/images/pipeline.jpg" />
+                    <div class="content has-text-justified">
+                        <p>
+                            Given an RGB video, we use MASt3R-SLAM to reconstruct the 3D point cloud.
+                            <span class="dnerf">SpatialLM</span> then converts these dense point clouds into a
+                            structured representation. The point cloud encoder encodes the point cloud to compact
+                            features, and the LLM generates scene codes that describe the scene, which can be converted
+                            into 3D structural layouts.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <!--/ Pipeline. -->
         </div>
-      </div>
-      <!--/ Teaser. -->
-    </div>
-  </section>
+    </section>
 
-  <section class="section">
-    <div class="container is-max-desktop">
-      <!-- Abstract. -->
-      <div class="columns is-centered has-text-centered">
-        <div class="column is-four-fifths">
-          <h2 class="title is-3">Introduction</h2>
-          <div class="content has-text-justified">
-            <p>
-              SpatialLM is a 3D large language model designed to process 3D point cloud data and generate structured 3D scene understanding outputs. These outputs include architectural elements like walls, doors, windows, and oriented object bounding boxes with their semantic categories. Unlike previous methods that require specialized equipment for data collection, SpatialLM can handle point clouds from diverse sources such as monocular video sequences, RGBD images, and LiDAR sensors. This multimodal architecture effectively bridges the gap between unstructured 3D geometric data and structured 3D representations, offering high-level semantic understanding. It enhances spatial reasoning capabilities for applications in embodied robotics, autonomous navigation, and other complex 3D scene analysis tasks.
-            </p>
-          </div>
+    <section class="section">
+        <div class="container is-max-desktop">
+            <!-- Dataset. -->
+            <div class="columns is-centered has-text-centered">
+                <div class="column is-four-fifths">
+                    <h2 class="title is-3">Training Dataset</h2>
+                    <div class="content has-text-justified">
+                        <p>
+                            <span class="dnerf">SpatialLM</span> is trained on large-scale, photo-realistic dataset. The
+                            walls and objects are
+                            realistically placed, accurately reflecting real-world scenarios and ensuring physical
+                            correctness.
+                        </p>
+                    </div>
+                    <video poster="./static/images/dataset.jpg" id="program" autoplay muted loop playsinline
+                        height="100%">
+                        <source
+                            src="https://manycore-research-azure.kujiale.com/manycore-research/SpatialLM/dataset.mp4"
+                            type="video/mp4">
+                    </video>
+                </div>
+            </div>
+            <!--/ Dataset. -->
         </div>
-      </div>
-      <!--/ Abstract. -->
-    </div>
-  </section>
+    </section>
 
-  <section class="section">
-    <div class="container is-max-desktop">
-      <!-- Pipeline. -->
-      <div class="columns is-centered has-text-centered">
-        <div class="column is-four-fifths">
-          <h2 class="title is-3">SpatialLM Pipeline</h2>
-          <img class="input-img" src="static/images/pipeline.png"></img>
-          <div class="content has-text-justified">
-            <p>
-              Given an RGB video, we use MASt3R-SLAM to reconstruct the 3D point cloud. SpatialLM then converts these dense point clouds into a structured representation. The point cloud encoder encodes the point cloud to compact features, and the LLM generates scene codes that describe the scene, which can be converted into 3D structural layouts.
-            </p>
-          </div>
+    <section class="section">
+        <div class="container is-max-desktop">
+            <!-- Cross Platform. -->
+            <div class="columns is-centered has-text-centered">
+                <div class="column is-four-fifths">
+                    <h2 class="title is-3">Cross Platform</h2>
+                    <div class="content has-text-justified">
+                        <p>
+                            <span class="dnerf">SpatialLM</span>'s prediction results are versatile and compatible
+                            across platforms. Outputs can be
+                            expressed in various formats, including structural layouts like 3D oriented bounding boxes,
+                            2D floorplans, and industry-standard formats such as IFC (Industry Foundation Classes).
+                        </p>
+                    </div>
+                    <img class="input-img" src="static/images/compatibility.jpg"></img>
+                </div>
+            </div>
+            <!--/ Cross Platform. -->
         </div>
-      </div>
-      <!--/ Pipeline. -->
-    </div>
-  </section>
+    </section>
 
-  <section class="section">
-    <div class="container is-max-desktop">
-      <!-- Dataset. -->
-      <div class="columns is-centered has-text-centered">
-        <div class="column is-four-fifths">
-          <h2 class="title is-3">Training Dataset</h2>
-          <div class="content has-text-justified">
-            <p>
-              SpatialLM is trained on large-scale, photo-realistic dataset. The walls and objects are realistically placed, accurately reflecting real-world scenarios and ensuring physical correctness.
-            </p>
-          </div>
-          <video poster="./static/images/dataset.png" id="program" autoplay muted loop playsinline height="100%">
-            <source src="https://manycore-research-azure.kujiale.com/manycore-research/SpatialLM/dataset.mp4" type="video/mp4">
-          </video>
+    <section class="section">
+        <div class="container is-max-desktop">
+            <!-- Future Extension. -->
+            <div class="columns is-centered has-text-centered">
+                <div class="column is-four-fifths">
+                    <h2 class="title is-3">Future Extension</h2>
+                    <div class="content has-text-justified">
+                        <p>
+                            Derived from state-of-the-art (SOTA) powerful LLM and its versatile output options,
+                            <span class="dnerf">SpatialLM</span> can be extended to more tasks in the future, such as
+                            interacting with humans as an
+                            intelligent assistant and empowering embodied agents to perform complex tasks in challenging
+                            environments.
+                        </p>
+                    </div>
+                    <img class="input-img" src="static/images/future.jpg"></img>
+                </div>
+            </div>
+            <!--/ Future Extension. -->
         </div>
-      </div>
-      <!--/ Dataset. -->
-    </div>
-  </section>
+    </section>
 
-  <section class="section">
-    <div class="container is-max-desktop">
-      <!-- Cross Platform. -->
-      <div class="columns is-centered has-text-centered">
-        <div class="column is-four-fifths">
-          <h2 class="title is-3">Cross Platform</h2>
-          <div class="content has-text-justified">
-            <p>
-              SpatialLM's prediction results are versatile and compatible across platforms. Outputs can be expressed in various formats, including structural layouts like 3D oriented bounding boxes, 2D floorplans, and industry-standard formats such as IFC (Industry Foundation Classes).
-            </p>
-          </div>
-          <img class="input-img" src="static/images/compatibility.png"></img>
-        </div>
-      </div>
-      <!--/ Cross Platform. -->
-    </div>
-  </section>
-
-  <section class="section">
-    <div class="container is-max-desktop">
-      <!-- Future Extension. -->
-      <div class="columns is-centered has-text-centered">
-        <div class="column is-four-fifths">
-          <h2 class="title is-3">Future Extension</h2>
-          <div class="content has-text-justified">
-            <p>
-              Derived from state-of-the-art (SOTA) powerful LLM and its versatile output options, SpatialLM can be extended to more tasks in the future, such as interacting with humans as an intelligent assistant and empowering embodied agents to perform complex tasks in challenging environments.
-            </p>
-          </div>
-          <img class="input-img" src="static/images/future.png"></img>
-        </div>
-      </div>
-      <!--/ Future Extension. -->
-    </div>
-  </section>
-
-  <section class="section" id="BibTeX">
-    <div class="container is-max-desktop content">
-      <h2 class="title">BibTeX</h2>
-      <pre><code>@misc{spatiallm,
-  title        = {SpatialLM: Large Language Model for Spatial Understanding},
-  author       = {ManyCore Research Team},
-  howpublished = {\url{https://github.com/manycore-research/SpatialLM}},
-  year         = {2025}
+    <section class="section" id="BibTeX">
+        <div class="container is-max-desktop content">
+            <h2 class="title">BibTeX</h2>
+            <pre><code>@article{SpatialLM,
+    title         = {SpatialLM: Training Large Language Models for Structured Indoor Modeling},
+    author        = {Mao, Yongsen and Zhong, Junhao and Fang, Chuan and Zheng, Jia and Tang, Rui and Zhu, Hao and Tan, Ping and Zhou, Zihan},
+    journal       = {arXiv preprint},
+    year          = {2025},
+    eprint        = {2506.07491},
+    archivePrefix = {arXiv},
+    primaryClass  = {cs.CV}
 }</code></pre>
-    </div>
-  </section>
-
-  <footer class="footer">
-    <div class="container">
-      <div class="content has-text-centered">
-        <a class="icon-link" href="https://huggingface.co/manycore-research/SpatialLM-Llama-1B">
-          <span class="icon">
-            <img src="./static/images/huggingface_logo-noborder.svg" alt="Hugging Face" width="24" height="24">
-          </span>
-        </a>
-        <a class="icon-link" href="https://github.com/manycore-research/SpatialLM" class="external-link" disabled>
-          <span class="icon">
-            <i class="fab fa-github"></i>
-          </span>
-        </a>
-      </div>
-      <div class="columns is-centered">
-        <div class="column is-8">
-          <div class="content">
-            <p>
-              This webpage template is from <a href="https://github.com/nerfies/nerfies.github.io">Nerfies</a>.
-            </p>
-          </div>
         </div>
-      </div>
-    </div>
-  </footer>
+    </section>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="content has-text-centered">
+                <a href="https://arxiv.org/abs/2506.07491" class="icon-link external-link" disabled>
+                    <span class="icon">
+                        <i class="fas fa-file-pdf"></i>
+                    </span>
+                </a>
+                <a class="icon-link" href="https://huggingface.co/manycore-research/SpatialLM1.1-Qwen-0.5B">
+                    <span class="icon">
+                        <img src="./static/images/huggingface_logo-noborder.svg" alt="Hugging Face" width="24"
+                            height="24" />
+                    </span>
+                </a>
+                <a class="icon-link" href="https://github.com/manycore-research/SpatialLM" class="external-link"
+                    disabled>
+                    <span class="icon">
+                        <i class="fab fa-github"></i>
+                    </span>
+                </a>
+            </div>
+            <div class="columns is-centered">
+                <div class="column is-8">
+                    <div class="content">
+                        <p>
+                            This webpage template is from <a
+                                href="https://github.com/nerfies/nerfies.github.io">Nerfies</a>.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
 
 </body>
 

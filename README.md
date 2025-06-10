@@ -4,12 +4,15 @@ This is the repository that contains webpage code for the [SpatialLM website](ht
 
 If you find SpatialLM useful for your work please cite:
 
-```
-@misc{spatiallm,
-  title        = {SpatialLM: Large Language Model for Spatial Understanding},
-  author       = {ManyCore Research Team},
-  howpublished = {\url{https://github.com/manycore-research/SpatialLM}},
-  year         = {2025}
+```bibtex
+@article{SpatialLM,
+    title         = {SpatialLM: Training Large Language Models for Structured Indoor Modeling},
+    author        = {Mao, Yongsen and Zhong, Junhao and Fang, Chuan and Zheng, Jia and Tang, Rui and Zhu, Hao and Tan, Ping and Zhou, Zihan},
+    journal       = {arXiv preprint},
+    year          = {2025},
+    eprint        = {2506.07491},
+    archivePrefix = {arXiv},
+    primaryClass  = {cs.CV}
 }
 ```
 
