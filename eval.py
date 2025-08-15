@@ -1,24 +1,24 @@
-import os
 import argparse
-import math
 import csv
 import itertools
 import logging
-from typing import Dict, List
+import math
+import os
 from collections import defaultdict
 from dataclasses import dataclass
+from typing import Dict, List
 
-import torch
-import pandas as pd
 import numpy as np
-from scipy.optimize import linear_sum_assignment
-from shapely import Polygon
+import pandas as pd
+import torch
 from bbox import BBox3D
 from bbox.metrics import iou_3d
+from scipy.optimize import linear_sum_assignment
+from shapely.geometry import Polygon
 from terminaltables import AsciiTable
 
 from spatiallm import Layout
-from spatiallm.layout.entity import Wall, Door, Window, Bbox
+from spatiallm.layout.entity import Bbox, Door, Wall, Window
 
 log = logging.getLogger(__name__)
 
@@ -273,9 +273,9 @@ def are_planes_parallel_and_close(
     n2 = np.cross(np.subtract(q2, q1), np.subtract(q3, q1))
     n1_length = np.linalg.norm(n1)
     n2_length = np.linalg.norm(n2)
-    assert (
-        n1_length * n2_length > ZERO_TOLERANCE
-    ), f"Invalid plane corners, corners_1: {corners_1}, corners_2: {corners_2}"
+    assert n1_length * n2_length > ZERO_TOLERANCE, (
+        f"Invalid plane corners, corners_1: {corners_1}, corners_2: {corners_2}"
+    )
 
     return (
         np.linalg.norm(np.cross(n1, n2)) / (n1_length * n2_length) < parallel_tolerance
