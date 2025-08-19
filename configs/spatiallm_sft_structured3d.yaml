@@ -3,26 +3,27 @@ model_name_or_path: manycore-research/SpatialLM1.1-Qwen-0.5B
 trust_remote_code: true
 
 ### method
+stage: sft
 do_train: true
 freeze_language_tower: false
 freeze_point_tower: false
 train_proj_only: false
 
 ### dataset
-dataset: structured3d_train,structured3d_test # structured3d_train,structured3d_test
+dataset: structured3d_train # structured3d_train,structured3d_test
 dataset_dir: data/structured3d-spatiallm # structured3d-spatiallm
 template: spatiallm_qwen # spatiallm_qwen, spatiallm_llama
 num_bins: 640
 do_augmentation: false
 random_rotation: true
-cutoff_len: 8192
-overwrite_cache: true
+cutoff_len: 8192 # 输入的最大token数，超过会被截断
+overwrite_cache: true # 覆盖缓存的训练和评估数据集
 preprocessing_num_workers: 8
 dataloader_num_workers: 8
 save_dir: saves/structured3d
 
 ### output
-output_dir: saves
+output_dir: saves/spatiallm-qwen-0.5b-sft
 logging_steps: 10
 save_steps: 500
 overwrite_output_dir: false
@@ -44,7 +45,8 @@ report_to: wandb # choices: [none, wandb, tensorboard, swanlab]
 max_new_tokens: 4096
 
 ### eval
-val_size: 0.0001
+# eval_dataset: structured3d_test
+val_size: 0.0001 # 验证集相对所使用的训练数据集的大小。取值在 [0,1) 之间。
 per_device_eval_batch_size: 1
 eval_strategy: steps
 eval_steps: 500
