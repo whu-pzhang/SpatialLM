@@ -3,7 +3,7 @@ model_name_or_path: manycore-research/SpatialLM1.1-Qwen-0.5B
 trust_remote_code: true
 
 ### method
-stage: sft
+# stage: sft
 do_train: true
 freeze_language_tower: false
 freeze_point_tower: false
@@ -41,7 +41,7 @@ bf16: false
 fp16: false
 tf32: true
 ddp_timeout: 180000000
-report_to: wandb # choices: [none, wandb, tensorboard, swanlab]
+report_to: tensorboard # choices: [none, wandb, tensorboard, swanlab]
 max_new_tokens: 4096
 
 ### eval

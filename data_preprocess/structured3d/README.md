@@ -1,3 +1,9 @@
+## USAGE
+
+1. Convert Structured3d annotations_3d.json to txt
+2. Generate train.csv and test.csv from structured3d-spatiallm's "split.csv"
+3. Convert layout/*.txt to structured3d_train.json and structured3d_test.json
+
 
 ## Data Origanization
 

@@ -19,7 +19,7 @@ def main(args):
         train_df = split_df[split_df["split"] == mode].copy()
 
         train_df["pcd"] = train_df["id"].apply(
-            lambda x: os.path.join(pcd_dir, f"{x}.pcd")
+            lambda x: os.path.join(pcd_dir, f"{x}.ply")
         )
         train_df["layout"] = train_df["id"].apply(
             lambda x: os.path.join(layout_dir, f"{x}.txt")
