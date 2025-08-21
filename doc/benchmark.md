@@ -61,24 +61,36 @@ python data_preprocess/structured3d/generate_metadata.py data/structured3d-spati
 评测命令
 
 ```bash
-python inference.py --point_cloud data/structured3d-spatiallm/pcd --output data/structured3d-spatiallm/pred --model_path manycore-research/SpatialLM1.1-Qwen-0.5B --inference_dtype float32 --detect_type arch
+python inference.py --point_cloud data/structured3d-spatiallm/pcd --output data/structured3d-spatiallm/pred --model_path manycore-research/SpatialLM1.1-Qwen-0.5B --inference_dtype float32 --detect_type arch --seed 304
 
 python eval.py --metadata data/structured3d-spatiallm/test.csv --gt_dir data/structured3d-spatiallm/layout --pred_dir data/structured3d-spatiallm/pred --label_mapping data/SpatialLM-Testset/benchmark_categories.tsv
 ```
 
+RTX 5090D 下测试结果
+
 | Layouts | F1 @.25 IoU        | F1 @.50 IoU         |
 | ------- | ------------------ | ------------------- |
-| wall    | 0.626064405502135  | 0.5506005462184016  |
-| door    | 0.233553664461133  | 0.18595688149501152 |
-| window  | 0.4175602793093983 | 0.18967194225466255 |
+| wall    | 0.7387823577082414 | 0.6796431827556839  |
+| door    | 0.4029347355315251 | 0.34145584616470437 |
+| window  | 0.5016612150871584 | 0.22031891801144338 |
+
+
+A100 下测试结果
+
+| Layouts | F1 @.25 IoU        | F1 @.50 IoU         |
+| ------- | ------------------ | ------------------- |
+| wall    | 0.7387823577082414 | 0.6796431827556839  |
+| door    | 0.4029347355315251 | 0.34145584616470437 |
+| window  | 0.5016612150871584 | 0.22031891801144338 |
+
 
 不同设备上测试结果存在较大差异，但A100上表现更优，和官方结果一致。
 
 | Metrics             | wall | door | window |
 | ------------------- | ---- | ---- | ------ |
-| F1@.25IoU(5090)     | 62.6 | 23.4 | 41.8   |
+| F1@.25IoU(5090)     | 73.9 | 40.3 | 50.2   |
 | F1@.25IoU(A100)     | 74.3 | 40.1 | 49.1   |
 | F1@.25IoU(Official) | 71.5 | 33.3 | 48.7   |
-| F1@.50IoU(5090)     | 55.1 | 18.6 | 19.0   |
+| F1@.50IoU(5090)     | 68.0 | 34.1 | 22.0   |
 | F1@.50IoU(A100)     | 68.6 | 34.9 | 20.9   |
 | F1@.50IoU(Official) | 64.8 | 29.0 | 21.0   |
