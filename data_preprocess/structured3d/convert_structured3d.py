@@ -32,7 +32,7 @@ def main():
                         },
                         {
                             "from": "gpt",
-                            "value": f"<layout_s>{layout_str}<layout_e>",
+                            "value": f"<|layout_s|>{layout_str}<|layout_e|>",
                         },
                     ],
                     "point_clouds": [ply_path],
