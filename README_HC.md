@@ -4,7 +4,7 @@
 
 官方论文结果如下：
 
-![alt text](./asset/spatiallm_layout.png)
+![alt text](./assets/spatiallm_layout.png)
 
 所有指标均在 structured3d 测试数据集上测试，记录 F1@0.5IoU 指标：
 
