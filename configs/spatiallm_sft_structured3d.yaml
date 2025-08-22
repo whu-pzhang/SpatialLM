@@ -3,7 +3,6 @@ model_name_or_path: manycore-research/SpatialLM1.1-Qwen-0.5B
 trust_remote_code: true
 
 ### method
-# stage: sft
 do_train: true
 freeze_language_tower: false
 freeze_point_tower: false
@@ -11,28 +10,32 @@ train_proj_only: false
 
 ### dataset
 dataset: structured3d_train # structured3d_train,structured3d_test
-dataset_dir: data/structured3d-spatiallm # structured3d-spatiallm
+dataset_dir: data/structured3d-spatiallm-pzhang # structured3d-spatiallm
 template: spatiallm_qwen # spatiallm_qwen, spatiallm_llama
 num_bins: 640
 do_augmentation: false
-random_rotation: true
+random_rotation: false
 cutoff_len: 8192 # 输入的最大token数，超过会被截断
 overwrite_cache: true # 覆盖缓存的训练和评估数据集
 preprocessing_num_workers: 8
 dataloader_num_workers: 8
-save_dir: saves/structured3d
+save_dir: saves/structured3d-pzhang
 
 ### output
-output_dir: saves/spatiallm-qwen-0.5b-sft
+output_dir: saves/spatiallm-0.5b-str3d-sft
 logging_steps: 10
 save_steps: 500
 overwrite_output_dir: false
 save_total_limit: 5
 
 ### train
-per_device_train_batch_size: 2
-gradient_accumulation_steps: 2
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 4
+optim: adamw_torch
 learning_rate: 1.0e-4 # to be more aggressive: try to change the learning rate to 5.0e-5 or 1.0e-4
+adam_beta1: 0.9
+adam_beta2: 0.99
+adam_epsilon: 1.0e-8
 num_train_epochs: 50
 lr_scheduler_type: cosine
 warmup_ratio: 0.03
