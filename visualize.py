@@ -1,10 +1,11 @@
 import argparse
+
 import numpy as np
 import rerun as rr
 import rerun.blueprint as rrb
 
 from spatiallm import Layout
-from spatiallm.pcd import load_o3d_pcd, get_points_and_colors
+from spatiallm.pcd import get_points_and_colors, load_o3d_pcd
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Layout Visualization with rerun")
@@ -31,8 +32,11 @@ if __name__ == "__main__":
     parser.add_argument(
         "--max_points",
         type=int,
-        default=1000000,
+        default=2000000,
         help="The maximum number of points for visualization",
+    )
+    parser.add_argument(
+        "--hide-labels", action="store_true", help="Hide labels in the visualization"
     )
     rr.script_add_args(parser)
     args = parser.parse_args()
@@ -50,6 +54,9 @@ if __name__ == "__main__":
     # ReRun visualization
     blueprint = rrb.Blueprint(
         rrb.Spatial3DView(name="3D", origin="/world", background=[255, 255, 255]),
+        rrb.Spatial2DView(
+            name="Floor Plan", origin="/world", background=[255, 255, 255]
+        ),
         collapse_panels=True,
     )
     rr.script_setup(args, "rerun_spatiallm", default_blueprint=blueprint)
@@ -89,6 +96,41 @@ if __name__ == "__main__":
                     labels=label,
                 ),
                 rr.InstancePoses3D(mat3x3=box["rotation"]),
-                static=False,
             )
+
+            # Draw the 2D floor plan manually using line segments
+            center_2d = box["center"][:2].copy()
+            # 翻转Y坐标以匹配3D视图
+            center_2d[1] = -center_2d[1]
+            half_size = (0.5 * box["scale"])[:2]
+            angle = np.arctan2(box["rotation"][1, 0], box["rotation"][0, 0])
+            rot_mat = np.array(
+                [[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]]
+            )
+
+            # Define corners of the box in its local frame
+            corners = np.array(
+                [
+                    [-half_size[0], half_size[1]],
+                    [half_size[0], half_size[1]],
+                    [half_size[0], -half_size[1]],
+                    [-half_size[0], -half_size[1]],
+                    [-half_size[0], half_size[1]],  # Close the loop
+                ]
+            )
+
+            # Rotate and translate corners
+            transformed_corners = (rot_mat @ corners.T).T + center_2d
+
+            rr.log(
+                f"world/floor_plan/{group}/{uid}",
+                rr.LineStrips2D([transformed_corners]),
+            )
+            if label and not args.hide_labels:
+                # Log a point at the center of the box to display the label,
+                # which is a robust way to add text in space in older rerun versions.
+                rr.log(
+                    f"world/floor_plan/{group}/{uid}/label",
+                    rr.Points2D(positions=[center_2d], labels=[label]),
+                )
     rr.script_teardown(args)
