@@ -14,8 +14,8 @@
 | SpatialLM1.1-Qwen-0.5B | spatiallm-data | str3d-pzhang | 67.09 | 34.00 | 34.82  | 45.30 | Official |                                                                               |
 | SpatialLM1.1-Qwen-0.5B | str3d          | str3d        | 93.46 | 81.52 | 75.69  | 83.56 | Official | [model](https://huggingface.co/ysmao/SpatialLM1.1-Qwen-0.5B-Structured3D-SFT) |
 | SpatialLM1.1-Qwen-0.5B | str3d          | str3d-pzhang | 92.16 | 59.29 | 18.96  | 56.80 | Official |                                                                               |
-| SpatialLM1.1-0.5B-sft  | str3d-pzhang   | str3d        | 87.53 | 61.48 | 22.96  | 57.32 |          | [config](configs/spatiallm_sft_structured3d_v1.yaml)                          |
-| SpatialLM1.1-0.5B-sft  | str3d-pzhang   | str3d-pzhang | 86.56 | 62.23 | 45.21  | 64.67 |          |                                                                               |
+| SpatialLM1.1-0.5B-sft  | str3d-pzhang   | str3d        | 92.82 | 73.60 | 32.10  | 66.17 |          | [config](configs/spatiallm_sft_structured3d.yaml)                             |
+| SpatialLM1.1-0.5B-sft  | str3d-pzhang   | str3d-pzhang | 91.93 | 63.19 | 50.73  | 68.62 |          |                                                                               |
 
 
 Note:
