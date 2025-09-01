@@ -8,4 +8,4 @@ export NPROC_PER_NODE=2  # Adjust to the number of GPUs available
 
 export PYTHONPATH=$(pwd):$PYTHONPATH
 
-CUDA_VISIBLE_DEVICES=3,4 python train.py configs/spatiallm_sft_structured3d.yaml
+CUDA_VISIBLE_DEVICES=4,5 python train.py configs/spatiallm_sft_structured3d-pzhang.yaml
