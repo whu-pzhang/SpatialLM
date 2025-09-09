@@ -4,19 +4,19 @@
 from typing import List, Optional, Tuple, Union
 
 import torch
-import torch.utils.checkpoint
 import torch.nn.functional as F
+import torch.utils.checkpoint
 from torch import nn
 from transformers import (
-    Qwen2Model,
-    Qwen2ForCausalLM,
     AutoConfig,
     AutoModelForCausalLM,
+    Qwen2ForCausalLM,
+    Qwen2Model,
 )
-from transformers.utils import logging
 from transformers.cache_utils import Cache
 from transformers.modeling_outputs import CausalLMOutputWithPast
 from transformers.models.qwen2.configuration_qwen2 import Qwen2Config
+from transformers.utils import logging
 
 try:
     import torchsparse
@@ -102,8 +102,8 @@ class SpatialLMQwenForCausalLM(Qwen2ForCausalLM):
         self.point_backbone.to(torch.float32)
         nan_mask = torch.isnan(point_cloud).any(dim=1)
         point_cloud = point_cloud[~nan_mask]
-        coords = point_cloud[:, :3].int()
-        feats = point_cloud[:, 3:].float()
+        coords = point_cloud[:, :3].int()  # grid_coord
+        feats = point_cloud[:, 3:].float()  # xyz + color
         if self.point_backbone_type == PointBackboneType.SCENESCRIPT:
             pc_sparse_tensor = torchsparse.SparseTensor(coords=coords, feats=feats)
             pc_sparse_tensor = sparse_collate([pc_sparse_tensor])  # batch_size = 1
@@ -126,6 +126,14 @@ class SpatialLMQwenForCausalLM(Qwen2ForCausalLM):
 
     def set_point_backbone_dtype(self, dtype: torch.dtype):
         for param in self.point_backbone.parameters():
+            param.data = param.data.to(dtype)
+
+    def set_llm_dtype(self, dtype: torch.dtype):
+        for param in self.model.parameters():
+            param.data = param.data.to(dtype)
+
+    def set_mlp_dtype(self, dtype: torch.dtype):
+        for param in self.point_proj.parameters():
             param.data = param.data.to(dtype)
 
     def get_model(self):
@@ -286,9 +294,9 @@ class SpatialLMQwenForCausalLM(Qwen2ForCausalLM):
             inputs_embeds = torch.stack(new_input_embeds, dim=0)
             attention_mask = torch.stack(new_attention_mask, dim=0)
 
-            assert (
-                attention_mask.shape[1] == inputs_embeds.shape[1]
-            ), "The length of attention mask and inputs embeds should be the same"
+            assert attention_mask.shape[1] == inputs_embeds.shape[1], (
+                "The length of attention mask and inputs embeds should be the same"
+            )
 
         # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
         outputs = self.model(
@@ -340,9 +348,9 @@ class SpatialLMQwenForCausalLM(Qwen2ForCausalLM):
                 new_labels.append(cur_new_labels)
             labels = torch.stack(new_labels, dim=0)
 
-            assert (
-                labels.shape[1] == logits.shape[1]
-            ), "The length of labels and logits should be the same"
+            assert labels.shape[1] == logits.shape[1], (
+                "The length of labels and logits should be the same"
+            )
 
             loss = self.loss_function(
                 logits=logits,

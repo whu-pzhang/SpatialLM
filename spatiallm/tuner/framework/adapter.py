@@ -18,7 +18,6 @@ import torch
 
 from ..framework import logging
 
-
 if TYPE_CHECKING:
     from transformers import PreTrainedModel
 
@@ -64,6 +63,10 @@ def _setup_full_tuning(
 
     # force point_backbone to have float32
     model.set_point_backbone_dtype(torch.float32)
+    #
+    if finetuning_args.pure_bf16:
+        model.set_llm_dtype(torch.bfloat16)
+        model.set_mlp_dtype(torch.bfloat16)
 
 
 def init_adapter(
