@@ -469,7 +469,9 @@ if __name__ == "__main__":
         required=True,
         help="Path to the pred layout txt directory",
     )
-    parser.add_argument("--only_layout", action="store_true")
+    parser.add_argument(
+        "--only_layout", action="store_true", help="Only evaluate layouts"
+    )
     parser.add_argument(
         "--label_mapping",
         type=str,
