@@ -361,6 +361,94 @@ def calc_layout_tp(
     return EvalTuple(tp, num_pred, num_gt)
 
 
+def evaluate_objects_at_iou_threshold(
+    pred_normal_objects: List[Bbox],
+    gt_normal_objects: List[Bbox],
+    classwise_eval_tuples: Dict[str, List[EvalTuple]],
+    iou_threshold: float,
+):
+    """
+    在指定的IoU阈值下评估所有对象类别
+
+    Args:
+        pred_normal_objects: 预测的对象列表
+        gt_normal_objects: 真实值对象列表
+        classwise_eval_tuples: 类别评估结果字典
+        iou_threshold: IoU阈值
+    """
+    for class_name in OBJECTS:
+        pred_entities = [
+            b for b in pred_normal_objects if get_entity_class(b) == class_name
+        ]
+        gt_entities = [
+            b for b in gt_normal_objects if get_entity_class(b) == class_name
+        ]
+
+        classwise_eval_tuples[class_name].append(
+            calc_bbox_tp(
+                pred_entities=pred_entities,
+                gt_entities=gt_entities,
+                iou_threshold=iou_threshold,
+            )
+        )
+
+
+def print_evaluation_table(
+    classwise_eval_tuples_25: Dict[str, List[EvalTuple]],
+    classwise_eval_tuples_50: Dict[str, List[EvalTuple]],
+    classwise_eval_tuples_75: Dict[str, List[EvalTuple]] = None,
+    title: str = "Objects",
+):
+    """
+    打印评估结果表格
+
+    Args:
+        classwise_eval_tuples_25: IoU 0.25阈值下的评估结果
+        classwise_eval_tuples_50: IoU 0.50阈값下的评估结果
+        classwise_eval_tuples_75: IoU 0.75阈값下的评估结果（可选）
+        title: 表格标题
+    """
+    if classwise_eval_tuples_75 is not None:
+        # Layout表格 (有三个IoU阈值)
+        headers = [title, "F1 @.25 IoU", "F1 @.50 IoU", "F1 @.75 IoU"]
+        table_data = [headers]
+        for class_name in LAYOUTS:
+            tuples = classwise_eval_tuples_25[class_name]
+            f1_25 = np.ma.masked_where(
+                [t.masked for t in tuples], [t.f1 for t in tuples]
+            ).mean()
+
+            tuples = classwise_eval_tuples_50[class_name]
+            f1_50 = np.ma.masked_where(
+                [t.masked for t in tuples], [t.f1 for t in tuples]
+            ).mean()
+
+            tuples = classwise_eval_tuples_75[class_name]
+            f1_75 = np.ma.masked_where(
+                [t.masked for t in tuples], [t.f1 for t in tuples]
+            ).mean()
+
+            table_data.append([class_name, f1_25, f1_50, f1_75])
+        print("\n" + AsciiTable(table_data).table)
+    else:
+        # Objects表格 (只有两个IoU阈值)
+        headers = [title, "F1 @.25 IoU", "F1 @.50 IoU"]
+        table_data = [headers]
+        for class_name in OBJECTS:
+            tuples = classwise_eval_tuples_25[class_name]
+            f1_25 = np.ma.masked_where(
+                [t.masked for t in tuples], [t.f1 for t in tuples]
+            ).mean()
+
+            tuples = classwise_eval_tuples_50[class_name]
+            f1_50 = np.ma.masked_where(
+                [t.masked for t in tuples], [t.f1 for t in tuples]
+            ).mean()
+
+            table_data.append([class_name, f1_25, f1_50])
+        print("\n" + AsciiTable(table_data).table)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("SpatialLM evaluation script")
     parser.add_argument(
@@ -381,10 +469,11 @@ if __name__ == "__main__":
         required=True,
         help="Path to the pred layout txt directory",
     )
+    parser.add_argument("--only_layout", action="store_true")
     parser.add_argument(
         "--label_mapping",
         type=str,
-        required=True,
+        required=False,
         help="Path to the label mapping file",
     )
     parser.add_argument("--label_from", type=str, default="spatiallm59")
@@ -393,20 +482,26 @@ if __name__ == "__main__":
 
     df = pd.read_csv(args.metadata)
     scene_id_list = df["id"].tolist()
-    class_map = read_label_mapping(args.label_mapping, args.label_from, args.label_to)
+    if not args.only_layout:
+        assert args.label_mapping is not None, "label_mapping is required"
+        class_map = read_label_mapping(
+            args.label_mapping, args.label_from, args.label_to
+        )
 
     classwise_eval_tuples_25: Dict[str, List[EvalTuple]] = defaultdict(list)
     classwise_eval_tuples_50: Dict[str, List[EvalTuple]] = defaultdict(list)
+    classwise_eval_tuples_75: Dict[str, List[EvalTuple]] = defaultdict(list)
     for scene_id in scene_id_list:
         log.info(f"Evaluating scene {scene_id}")
         with open(os.path.join(args.pred_dir, f"{scene_id}.txt"), "r") as f:
             pred_layout = Layout(f.read())
         with open(os.path.join(args.gt_dir, f"{scene_id}.txt"), "r") as f:
             gt_layout = Layout(f.read())
-        pred_layout.bboxes = assign_class_map(pred_layout.bboxes, class_map)
-        gt_layout.bboxes = assign_class_map(gt_layout.bboxes, class_map)
-        assign_minimum_scale(pred_layout.bboxes, minimum_scale=0.1)
-        assign_minimum_scale(gt_layout.bboxes, minimum_scale=0.1)
+        if not args.only_layout:
+            pred_layout.bboxes = assign_class_map(pred_layout.bboxes, class_map)
+            gt_layout.bboxes = assign_class_map(gt_layout.bboxes, class_map)
+            assign_minimum_scale(pred_layout.bboxes, minimum_scale=0.1)
+            assign_minimum_scale(gt_layout.bboxes, minimum_scale=0.1)
 
         # Layout, F1
         pred_wall_id_lookup = {w.id: w for w in pred_layout.walls}
@@ -428,107 +523,64 @@ if __name__ == "__main__":
                 gt_layout.doors + gt_layout.windows,
             )
         )
+
         for class_name in LAYOUTS:
+            pred_entities = [
+                b for b in pred_layout_instances if get_entity_class(b) == class_name
+            ]
+            gt_entities = [
+                b for b in gt_layout_instances if get_entity_class(b) == class_name
+            ]
             classwise_eval_tuples_25[class_name].append(
                 calc_layout_tp(
-                    pred_entities=[
-                        b
-                        for b in pred_layout_instances
-                        if get_entity_class(b) == class_name
-                    ],
-                    gt_entities=[
-                        b
-                        for b in gt_layout_instances
-                        if get_entity_class(b) == class_name
-                    ],
+                    pred_entities=pred_entities,
+                    gt_entities=gt_entities,
                     pred_wall_id_lookup=pred_wall_id_lookup,
                     gt_wall_id_lookup=gt_wall_id_lookup,
                     iou_threshold=0.25,
                 )
             )
-
             classwise_eval_tuples_50[class_name].append(
                 calc_layout_tp(
-                    pred_entities=[
-                        b
-                        for b in pred_layout_instances
-                        if get_entity_class(b) == class_name
-                    ],
-                    gt_entities=[
-                        b
-                        for b in gt_layout_instances
-                        if get_entity_class(b) == class_name
-                    ],
+                    pred_entities=pred_entities,
+                    gt_entities=gt_entities,
                     pred_wall_id_lookup=pred_wall_id_lookup,
                     gt_wall_id_lookup=gt_wall_id_lookup,
                     iou_threshold=0.50,
+                )
+            )
+            classwise_eval_tuples_75[class_name].append(
+                calc_layout_tp(
+                    pred_entities=pred_entities,
+                    gt_entities=gt_entities,
+                    pred_wall_id_lookup=pred_wall_id_lookup,
+                    gt_wall_id_lookup=gt_wall_id_lookup,
+                    iou_threshold=0.75,
                 )
             )
 
         # Normal Objects, F1
         pred_normal_objects = [b for b in pred_layout.bboxes if b.class_name in OBJECTS]
         gt_normal_objects = [b for b in gt_layout.bboxes if b.class_name in OBJECTS]
-        for class_name in OBJECTS:
-            classwise_eval_tuples_25[class_name].append(
-                calc_bbox_tp(
-                    pred_entities=[
-                        b
-                        for b in pred_normal_objects
-                        if get_entity_class(b) == class_name
-                    ],
-                    gt_entities=[
-                        b
-                        for b in gt_normal_objects
-                        if get_entity_class(b) == class_name
-                    ],
-                    iou_threshold=0.25,
-                )
-            )
 
-            classwise_eval_tuples_50[class_name].append(
-                calc_bbox_tp(
-                    pred_entities=[
-                        b
-                        for b in pred_normal_objects
-                        if get_entity_class(b) == class_name
-                    ],
-                    gt_entities=[
-                        b
-                        for b in gt_normal_objects
-                        if get_entity_class(b) == class_name
-                    ],
-                    iou_threshold=0.50,
-                )
-            )
+        # 使用重构后的函数处理不同IoU阈值的评估
+        evaluate_objects_at_iou_threshold(
+            pred_normal_objects, gt_normal_objects, classwise_eval_tuples_25, 0.25
+        )
+        evaluate_objects_at_iou_threshold(
+            pred_normal_objects, gt_normal_objects, classwise_eval_tuples_50, 0.50
+        )
 
-    headers = ["Layouts", "F1 @.25 IoU", "F1 @.50 IoU"]
-    table_data = [headers]
-    for class_name in LAYOUTS:
-        tuples = classwise_eval_tuples_25[class_name]
-        f1_25 = np.ma.masked_where(
-            [t.masked for t in tuples], [t.f1 for t in tuples]
-        ).mean()
+    # 使用重构后的函数打印评估结果表格
+    print_evaluation_table(
+        classwise_eval_tuples_25,
+        classwise_eval_tuples_50,
+        classwise_eval_tuples_75,
+        title="Layouts",
+    )
 
-        tuples = classwise_eval_tuples_50[class_name]
-        f1_50 = np.ma.masked_where(
-            [t.masked for t in tuples], [t.f1 for t in tuples]
-        ).mean()
-
-        table_data.append([class_name, f1_25, f1_50])
-    print("\n" + AsciiTable(table_data).table)
-
-    headers = ["Objects", "F1 @.25 IoU", "F1 @.50 IoU"]
-    table_data = [headers]
-    for class_name in OBJECTS:
-        tuples = classwise_eval_tuples_25[class_name]
-        f1_25 = np.ma.masked_where(
-            [t.masked for t in tuples], [t.f1 for t in tuples]
-        ).mean()
-
-        tuples = classwise_eval_tuples_50[class_name]
-        f1_50 = np.ma.masked_where(
-            [t.masked for t in tuples], [t.f1 for t in tuples]
-        ).mean()
-
-        table_data.append([class_name, f1_25, f1_50])
-    print("\n" + AsciiTable(table_data).table)
+    # Skip object evaluation table if only_layout is True
+    if not args.only_layout:
+        print_evaluation_table(
+            classwise_eval_tuples_25, classwise_eval_tuples_50, title="Objects"
+        )
