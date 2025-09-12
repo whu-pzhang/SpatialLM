@@ -1,4 +1,5 @@
 import argparse
+from pathlib import Path
 
 import numpy as np
 import rerun as rr
@@ -40,6 +41,10 @@ if __name__ == "__main__":
     )
     rr.script_add_args(parser)
     args = parser.parse_args()
+
+    save_dir = Path(args.save).parent
+    if not save_dir.exists():
+        save_dir.mkdir(parents=True, exist_ok=True)
 
     with open(args.layout, "r") as f:
         layout_content = f.read()
@@ -86,7 +91,7 @@ if __name__ == "__main__":
         for box in sub_floor_plan:
             uid = box["id"]
             group = box["class"]
-            label = box["label"]
+            label = None if args.hide_labels else box["label"]
 
             rr.log(
                 f"world/pred/{group}/{uid}",
@@ -98,29 +103,29 @@ if __name__ == "__main__":
                 rr.InstancePoses3D(mat3x3=box["rotation"]),
             )
 
-            # Draw the 2D floor plan manually using line segments
-            center_2d = box["center"][:2].copy()
-            # 翻转Y坐标以匹配3D视图
-            center_2d[1] = -center_2d[1]
-            half_size = (0.5 * box["scale"])[:2]
-            angle = np.arctan2(box["rotation"][1, 0], box["rotation"][0, 0])
-            rot_mat = np.array(
-                [[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]]
-            )
+            # Draw the 2D floor plan as wall lines
+            # scale = [length, thickness, height], thickness为零，绘制为线条
+            center_3d = box["center"]
+            scale = box["scale"]
+            rotation_3d = box["rotation"]
 
-            # Define corners of the box in its local frame
-            corners = np.array(
+            # length是墙的长度，thickness为零
+            half_length = 0.5 * scale[0]
+
+            # 计算墙体两端点（沿着墙的长度方向）
+            # 在局部坐标系中，墙沿X轴方向
+            local_endpoints = np.array(
                 [
-                    [-half_size[0], half_size[1]],
-                    [half_size[0], half_size[1]],
-                    [half_size[0], -half_size[1]],
-                    [-half_size[0], -half_size[1]],
-                    [-half_size[0], half_size[1]],  # Close the loop
+                    [-half_length, 0, 0],  # 起点
+                    [half_length, 0, 0],  # 终点
                 ]
             )
 
-            # Rotate and translate corners
-            transformed_corners = (rot_mat @ corners.T).T + center_2d
+            # 应用3D旋转变换
+            world_endpoints = (rotation_3d @ local_endpoints.T).T + center_3d
+
+            # 取XY坐标作为2D线条
+            transformed_corners = world_endpoints[:, :2]
 
             rr.log(
                 f"world/floor_plan/{group}/{uid}",
@@ -129,8 +134,11 @@ if __name__ == "__main__":
             if label and not args.hide_labels:
                 # Log a point at the center of the box to display the label,
                 # which is a robust way to add text in space in older rerun versions.
+                # 标签位置使用中心点
+                # 标签位置使用中心点的XY坐标
+                label_center = center_3d[:2]
                 rr.log(
                     f"world/floor_plan/{group}/{uid}/label",
-                    rr.Points2D(positions=[center_2d], labels=[label]),
+                    rr.Points2D(positions=[label_center], labels=[label]),
                 )
     rr.script_teardown(args)
