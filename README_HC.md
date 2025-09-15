@@ -29,6 +29,16 @@ Note:
 
 ## HC3D 数据训练
 
+采用 `data_preprocess/HC3D/` 下的说明进行数据处理后，即可开始进行训练。
+
+有效数据 8 套，训练 500 iterations，训练集上指标如下：
+
+| Model             | FT Dataset | Test Dataset | wall  | door  | window | Avg   | Note  |
+| ----------------- | ---------- | ------------ | ----- | ----- | ------ | ----- | ----- |
+| SpatialLM1.1-0.5B | HC3D       | HC3D         | 92.27 | 96.15 | 97.92  | 95.45 | 5cm   |
+| SpatialLM1.1-0.5B | HC3D       | HC3D         |       |       |        |       | 2.5cm |
+
+
 
 
 
@@ -37,8 +47,14 @@ Note:
 官方在 s3d 数据上微调训练时，`num_bins` 设置为 640，结合 `spatiallm/layout/entity.py` 中的 `NORMALIZATION_PRESET` 参数，
 可计算出其对点云的网格划分最小为 `32/640=0.05m`，该精度无法满足室内布局估计 2 到 5 cm的精度要求。
 
-| num_bins | resulution | s3d avg f1@0.5IoU | train prec | Note     |
-| -------- | ---------- | ----------------- | ---------- | -------- |
-| 640      | 0.05       | 91.73             | fp32       | official |
-| 1280     | 0.025      | NaN               | fp32       | OOM      |
+以下实验均基于 `SpatialLM1.1-0.5B` 模型，采用 `s3d` 数据集进行训练，在 RTX 5090D 32GB 显卡下进行：
+
+- `per_device_train_batch_size=1`
+
+| num_bins | resulution | Peak Mem | train prec                 | Note         |
+| -------- | ---------- | -------- | -------------------------- | ------------ |
+| 640      | 0.05       | OOM      | fp32                       | 101 step OOM |
+| 640      | 0.05       | OOM      | MLP+LLM bf16               | 288 step OOM |
+| 640      | 0.05       | OOM      | bf16,cutoff_len=4096       | 288 step OOM |
+| 640      | 0.05       | OOM      | bf16,cutoff_len=4096,zero2 | 101 step OOM |
 
