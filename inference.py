@@ -1,16 +1,20 @@
-import os
-import glob
 import argparse
-
-import torch
-import numpy as np
-from tqdm import tqdm
+import glob
+import os
 from threading import Thread
-from transformers import AutoTokenizer, AutoModelForCausalLM
-from transformers import TextIteratorStreamer, set_seed
+
+import numpy as np
+import torch
+from tqdm import tqdm
+from transformers import (
+    AutoModelForCausalLM,
+    AutoTokenizer,
+    TextIteratorStreamer,
+    set_seed,
+)
 
 from spatiallm import Layout
-from spatiallm.pcd import load_o3d_pcd, get_points_and_colors, cleanup_pcd, Compose
+from spatiallm.pcd import Compose, cleanup_pcd, get_points_and_colors, load_o3d_pcd
 
 DETECT_TYPE_PROMPT = {
     "all": "Detect walls, doors, windows, boxes.",
@@ -91,12 +95,25 @@ def generate_layout(
     )
     input_ids = input_ids.to(model.device)
 
+    # Create attention mask
+    attention_mask = torch.ones_like(input_ids)
+
     streamer = TextIteratorStreamer(
         tokenizer, timeout=20.0, skip_prompt=True, skip_special_tokens=True
     )
 
+    # Set pad_token_id for generation
+    if tokenizer.pad_token_id is None:
+        pad_token_id = tokenizer.eos_token_id
+    else:
+        pad_token_id = tokenizer.pad_token_id
+
     generate_kwargs = dict(
-        {"input_ids": input_ids, "point_clouds": point_cloud},
+        {
+            "input_ids": input_ids,
+            "attention_mask": attention_mask,
+            "point_clouds": point_cloud,
+        },
         streamer=streamer,
         max_new_tokens=max_new_tokens,
         do_sample=True,
@@ -105,6 +122,7 @@ def generate_layout(
         top_p=top_p,
         top_k=top_k,
         num_beams=num_beams,
+        pad_token_id=pad_token_id,
     )
     t = Thread(target=model.generate, kwargs=generate_kwargs)
     t.start()
@@ -243,7 +261,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--temperature",
         type=float,
-        default=0.6,
+        default=0.1,
         help="The value used to module the next token probabilities",
     )
     parser.add_argument(
@@ -267,7 +285,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--seed",
         type=int,
-        default=-1,
+        default=42,
         help="The seed to use during inference, negative value means no seed",
     )
     args = parser.parse_args()
