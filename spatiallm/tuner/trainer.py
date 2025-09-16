@@ -5,28 +5,27 @@ import torch.distributed as dist
 from transformers import Seq2SeqTrainer
 from typing_extensions import override
 
-from spatiallm.tuner.framework import logging
-from spatiallm.tuner.framework.utils import is_transformers_version_greater_than
-from spatiallm.tuner.framework.callbacks import (
-    LogCallback,
-    ReporterCallback,
-    get_swanlab_callback,
-)
-from spatiallm.tuner.framework.loader import load_tokenizer, load_model
-from spatiallm.tuner.hparams import get_train_args, read_args
 from spatiallm.tuner.data import (
     IGNORE_INDEX,
+    SFTDataCollatorWith4DAttentionMask,
     get_dataset,
     get_template_and_fix_tokenizer,
     register_spatiallm_templates,
-    SFTDataCollatorWith4DAttentionMask,
 )
-
+from spatiallm.tuner.framework import logging
+from spatiallm.tuner.framework.callbacks import (
+    LogCallback,
+    MemoryCallback,
+    ReporterCallback,
+    get_swanlab_callback,
+)
+from spatiallm.tuner.framework.loader import load_model, load_tokenizer
+from spatiallm.tuner.framework.utils import is_transformers_version_greater_than
+from spatiallm.tuner.hparams import get_train_args, read_args
 
 if TYPE_CHECKING:
     from transformers import (
         PreTrainedTokenizer,
-        ProcessorMixin,
         Seq2SeqTrainingArguments,
         TrainerCallback,
     )
@@ -188,6 +187,7 @@ def _training_function(config: dict[str, Any]) -> None:
     callbacks.append(
         ReporterCallback(model_args, data_args, finetuning_args, generating_args)
     )  # add to last
+    callbacks.append(MemoryCallback())
 
     run_sft(
         model_args,

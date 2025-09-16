@@ -1,23 +1,23 @@
+import json
 import os
 import sys
-import json
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Optional
-from concurrent.futures import ThreadPoolExecutor
-from typing_extensions import override
 
+import torch
 from transformers import PreTrainedModel, TrainerCallback
+from typing_extensions import override
 
 from . import logging
 from .utils import has_length
 
 if TYPE_CHECKING:
     from transformers import (
-        ProcessorMixin,
-        TrainingArguments,
-        TrainerState,
         TrainerControl,
+        TrainerState,
+        TrainingArguments,
     )
 
     from ..hparams import (
@@ -30,6 +30,30 @@ if TYPE_CHECKING:
 logger = logging.get_logger(__name__)
 
 TRAINER_LOG = "trainer_log.jsonl"
+
+
+class MemoryCallback(TrainerCallback):
+    """记录 GPU 显存占用到 TensorBoard 的回调"""
+
+    def on_step_end(self, args, state, control, **kwargs):
+        if not torch.cuda.is_available():
+            return
+
+        trainer = kwargs.get("trainer", None)
+        if trainer is None:
+            return
+
+        memory_allocated = torch.cuda.memory_allocated() / 1024**2
+        memory_reserved = torch.cuda.memory_reserved() / 1024**2
+        max_memory = torch.cuda.max_memory_allocated() / 1024**2
+
+        trainer.log(
+            {
+                "gpu/memory_allocated_MB": memory_allocated,
+                "gpu/memory_reserved_MB": memory_reserved,
+                "gpu/max_memory_allocated_MB": max_memory,
+            }
+        )
 
 
 class LogCallback(TrainerCallback):
