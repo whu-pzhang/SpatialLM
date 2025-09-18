@@ -331,6 +331,41 @@ def parse_spatiallm_text(text_file: str) -> List[WallSegment]:
     return wall_segments
 
 
+def txt2dxf(
+    input_file: str,
+    output_file: str,
+    layer_name: str = "wall_poly",
+    verbose=False,
+):
+    wall_segments = parse_spatiallm_text(input_file)
+
+    if not wall_segments:
+        print("警告: 未找到任何墙体信息")
+        return 0
+
+    analyzer = ConnectedComponentAnalyzer(tolerance=1e-3)
+    components = analyzer.find_connected_components(wall_segments)
+
+    all_polygons = []
+    builder = PolygonBuilder(tolerance=1e-3)
+
+    for i, component in enumerate(components):
+        if verbose:
+            print(f"处理连通分量 {i + 1}/{len(components)} ({len(component)} 个墙体)")
+
+        polygons = builder.build_polygons(component)
+        all_polygons.extend(polygons)
+
+    generator = DXFGenerator(layer_name=layer_name)
+    generator.create_dxf(all_polygons, output_file)
+
+    if verbose:
+        print(f"转换完成! 输出文件: {output_file}")
+        print(f"- 处理了 {len(wall_segments)} 个墙体线段")
+        print(f"- 识别了 {len(components)} 个连通分量")
+        print(f"- 生成了 {len(all_polygons)} 个多边形")
+
+
 def main():
     """主函数"""
     parser = argparse.ArgumentParser(
@@ -371,59 +406,12 @@ def main():
         output_file = f"{base_name}.dxf"
 
     try:
-        # 解析输入文件
-        if args.verbose:
-            print(f"正在解析文件: {args.input_file}")
-
-        wall_segments = parse_spatiallm_text(args.input_file)
-
-        if args.verbose:
-            print(f"找到 {len(wall_segments)} 个墙体线段")
-
-        if not wall_segments:
-            print("警告: 未找到任何墙体信息")
-            return 0
-
-        # 连通分量分析
-        if args.verbose:
-            print("正在进行连通分量分析...")
-
-        analyzer = ConnectedComponentAnalyzer(tolerance=args.tolerance)
-        components = analyzer.find_connected_components(wall_segments)
-
-        if args.verbose:
-            print(f"找到 {len(components)} 个连通分量")
-
-        # 构建多边形
-        if args.verbose:
-            print("正在构建多边形...")
-
-        all_polygons = []
-        builder = PolygonBuilder(tolerance=args.tolerance)
-
-        for i, component in enumerate(components):
-            if args.verbose:
-                print(
-                    f"处理连通分量 {i + 1}/{len(components)} ({len(component)} 个墙体)"
-                )
-
-            polygons = builder.build_polygons(component)
-            all_polygons.extend(polygons)
-
-        if args.verbose:
-            print(f"生成了 {len(all_polygons)} 个多边形")
-
-        # 生成DXF文件
-        if args.verbose:
-            print(f"正在生成 DXF 文件: {output_file}")
-
-        generator = DXFGenerator(layer_name=args.layer)
-        generator.create_dxf(all_polygons, output_file)
-
-        print(f"转换完成! 输出文件: {output_file}")
-        print(f"- 处理了 {len(wall_segments)} 个墙体线段")
-        print(f"- 识别了 {len(components)} 个连通分量")
-        print(f"- 生成了 {len(all_polygons)} 个多边形")
+        txt2dxf(
+            input_file=args.input_file,
+            output_file=output_file,
+            layer_name=args.layer,
+            verbose=args.verbose,
+        )
 
         return 0
 
