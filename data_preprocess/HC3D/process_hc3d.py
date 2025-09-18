@@ -183,7 +183,7 @@ def downsample_point_cloud(points, colors, voxel_size=0.01):
     # 创建Open3D点云对象
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(points)
-    
+
     if colors is not None:
         # 确保颜色在0-1范围内
         if colors.max() > 1.0:
@@ -194,11 +194,15 @@ def downsample_point_cloud(points, colors, voxel_size=0.01):
 
     # 执行体素下采样
     downsampled_pcd = pcd.voxel_down_sample(voxel_size)
+    # remove outliers
+    downsampled_pcd, _ = downsampled_pcd.remove_statistical_outlier(15, std_ratio=2.0)
 
     # 提取下采样后的点和颜色
     downsampled_points = np.asarray(downsampled_pcd.points)
-    downsampled_colors = np.asarray(downsampled_pcd.colors) if downsampled_pcd.has_colors() else None
-    
+    downsampled_colors = (
+        np.asarray(downsampled_pcd.colors) if downsampled_pcd.has_colors() else None
+    )
+
     # 如果有颜色数据，将其转换回0-255范围
     if downsampled_colors is not None and downsampled_colors.max() <= 1.0:
         downsampled_colors = (downsampled_colors * 255.0).astype(np.uint8)
@@ -326,7 +330,9 @@ def process_single_scene(scene_path, output_dir, downsample=False, voxel_size=0.
         # 如果需要抽稀，则进行抽稀操作
         if downsample:
             print(f"  - 正在进行点云抽稀 (体素大小: {voxel_size})...")
-            cropped_points, cropped_colors = downsample_point_cloud(cropped_points, cropped_colors, voxel_size)
+            cropped_points, cropped_colors = downsample_point_cloud(
+                cropped_points, cropped_colors, voxel_size
+            )
             print(f"  - 抽稀后点云包含 {len(cropped_points)} 个点")
 
         # 创建输出目录
@@ -334,7 +340,10 @@ def process_single_scene(scene_path, output_dir, downsample=False, voxel_size=0.
 
         # 保存为ply文件
         # ply_filename = las_file_name.replace(".las", "_cropped.ply")
-        ply_filename = f"{scene_name}.ply"
+        if downsample:
+            ply_filename = f"{scene_name}_{voxel_size}.ply"
+        else:
+            ply_filename = f"{scene_name}.ply"
         output_path = os.path.join(output_dir, ply_filename)
 
         print("  - 正在保存ply文件...")
@@ -397,9 +406,7 @@ def main():
     parser.add_argument(
         "--output_dir", type=str, default="data/HC3D/processed/pcd", help="输出目录路径"
     )
-    parser.add_argument(
-        "--downsample", action="store_true", help="是否进行点云抽稀"
-    )
+    parser.add_argument("--downsample", action="store_true", help="是否进行点云抽稀")
     parser.add_argument(
         "--voxel_size", type=float, default=0.01, help="抽稀时的体素大小"
     )
@@ -412,7 +419,9 @@ def main():
         return
 
     # 处理数据集
-    process_hc3d_dataset(args.data_root, args.output_dir, args.downsample, args.voxel_size)
+    process_hc3d_dataset(
+        args.data_root, args.output_dir, args.downsample, args.voxel_size
+    )
 
 
 if __name__ == "__main__":
