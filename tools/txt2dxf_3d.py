@@ -56,13 +56,7 @@ class Txt2DxfConverter:
         with open(self.input_file, "r", encoding="utf-8") as f:
             content = f.read()
 
-        print(f"正在解析文件: {self.input_file}")
         layout = Layout(content)
-        print(
-            f"解析到 {len(layout.walls)} 个墙体, "
-            f"{len(layout.doors)} 个门, "
-            f"{len(layout.windows)} 个窗"
-        )
         return layout
 
     def _setup_layers(self):
@@ -150,7 +144,7 @@ class Txt2DxfConverter:
     def _save(self):
         """保存 DXF 文件"""
         self.doc.saveas(self.output_file)
-        print(f"DXF 文件已保存到: {self.output_file}")
+        # print(f"DXF 文件已保存到: {self.output_file}")
 
 
 def main():
