@@ -35,25 +35,87 @@ TRAINER_LOG = "trainer_log.jsonl"
 class MemoryCallback(TrainerCallback):
     """记录 GPU 显存占用到 TensorBoard 的回调"""
 
-    def on_step_end(self, args, state, control, **kwargs):
+    def __init__(self, include_all_devices: bool = False):
+        """
+        初始化内存回调
+
+        Args:
+            include_all_devices: 是否记录所有 GPU 设备的内存使用情况
+        """
+        self.include_all_devices = include_all_devices
+
+    def _get_memory_stats(self, device_id: Optional[int] = None) -> dict[str, float]:
+        """获取指定设备的实际显存占用情况（类似nvidia-smi）"""
+        try:
+            if device_id is not None:
+                device_idx = device_id
+            else:
+                device_idx = torch.cuda.current_device()
+
+            device = torch.device(f"cuda:{device_idx}")
+            memory_reserved = torch.cuda.memory_reserved(device) / 1024**3  # GB
+            memory_total = (
+                torch.cuda.get_device_properties(device).total_memory / 1024**3
+            )
+
+            memory_used = memory_reserved  # reserved memory更接近实际使用
+            memory_free = memory_total - memory_reserved
+            memory_usage_percent = (
+                (memory_reserved / memory_total) * 100 if memory_total > 0 else 0
+            )
+
+            prefix = f"gpu_{device_id}" if device_id is not None else "gpu"
+
+            return {
+                f"{prefix}/memory_used_GB": round(memory_used, 3),
+                f"{prefix}/memory_free_GB": round(memory_free, 3),
+                f"{prefix}/total_memory_GB": round(memory_total, 3),
+                f"{prefix}/memory_usage_percent": round(memory_usage_percent, 2),
+            }
+
+        except Exception as e:
+            logger.warning(f"Failed to get memory stats for device {device_id}: {e}")
+            return {}
+
+    def _log_memory_stats(self, trainer, logs: Optional[dict] = None):
+        """记录内存统计信息"""
         if not torch.cuda.is_available():
             return
 
-        trainer = kwargs.get("trainer", None)
-        if trainer is None:
-            return
+        try:
+            memory_stats = {}
 
-        memory_allocated = torch.cuda.memory_allocated() / 1024**2
-        memory_reserved = torch.cuda.memory_reserved() / 1024**2
-        max_memory = torch.cuda.max_memory_allocated() / 1024**2
+            if self.include_all_devices:
+                # 记录所有 GPU 设备的内存使用情况
+                for device_id in range(torch.cuda.device_count()):
+                    device_stats = self._get_memory_stats(device_id)
+                    memory_stats.update(device_stats)
+            else:
+                # 只记录当前设备的内存使用情况
+                device_stats = self._get_memory_stats()
+                memory_stats.update(device_stats)
 
-        trainer.log(
-            {
-                "gpu/memory_allocated_MB": memory_allocated,
-                "gpu/memory_reserved_MB": memory_reserved,
-                "gpu/max_memory_allocated_MB": max_memory,
-            }
-        )
+            # 如果有 trainer，使用 trainer.log 记录到 TensorBoard
+            if trainer is not None:
+                trainer.log(memory_stats)
+
+            # 如果有 logs 字典，也添加到其中（用于 on_log 回调）
+            if logs is not None:
+                logs.update(memory_stats)
+
+        except Exception as e:
+            logger.warning(f"Failed to log memory stats: {e}")
+
+    def on_log(self, args, state, control, logs=None, **kwargs):
+        """在日志记录时添加内存信息"""
+        if logs is None:
+            return control
+
+        # 只在有 CUDA 可用时记录内存信息
+        if torch.cuda.is_available():
+            self._log_memory_stats(None, logs)
+
+        return control
 
 
 class LogCallback(TrainerCallback):

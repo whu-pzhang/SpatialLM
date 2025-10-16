@@ -184,10 +184,11 @@ def _training_function(config: dict[str, Any]) -> None:
     if finetuning_args.use_swanlab:
         callbacks.append(get_swanlab_callback(finetuning_args))
 
+    callbacks.append(MemoryCallback())  # record GPU memory usage
+
     callbacks.append(
         ReporterCallback(model_args, data_args, finetuning_args, generating_args)
     )  # add to last
-    callbacks.append(MemoryCallback())
 
     run_sft(
         model_args,
