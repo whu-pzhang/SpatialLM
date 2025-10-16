@@ -31,15 +31,17 @@ Note:
 
 采用 `data_preprocess/HC3D/` 下的说明进行数据处理后，即可开始进行训练。
 
-有效数据 8 套，训练 500 iterations，训练集上指标如下：
+有效数据 8 套，训练集上 2D IoU@0.75 指标如下：
 
-| Model             | FT Dataset | Test Dataset | wall  | door  | window | Avg   | Note  |
-| ----------------- | ---------- | ------------ | ----- | ----- | ------ | ----- | ----- |
-| SpatialLM1.1-0.5B | HC3D       | HC3D         | 92.27 | 96.15 | 97.92  | 95.45 | 5cm   |
-| SpatialLM1.1-0.5B | HC3D       | HC3D         |       |       |        |       | 2.5cm |
-
-
-
+| Model             | FT Dataset | wall  | door  | window | Avg   | train config        | infer config |
+| ----------------- | ---------- | ----- | ----- | ------ | ----- | ------------------- | ------------ |
+| SpatialLM1.1-0.5B | HC3D       |       |       |        |       | 5cm,fp32            | fp32         |
+| SpatialLM1.1-0.5B | HC3D       |       |       |        |       | 5cm,bf16            | fp32         |
+| SpatialLM1.1-0.5B | HC3D       |       |       |        |       | 2.5cm,fp32          | fp32         |
+| SpatialLM1.1-0.5B | HC3D       | 92.61 | 96.50 | 93.27  | 94.13 | 2.5cm,bf16,250iters | fp32         |
+| SpatialLM1.1-0.5B | HC3D       | 93.20 | 96.20 | 92.50  | 93.97 | 2.5cm,bf16,250iters | bf16         |
+| SpatialLM1.1-0.5B | HC3D       | 94.60 | 97.92 | 100    | 97.51 | 2.5cm,bf16,500iters | fp32         |
+| SpatialLM1.1-0.5B | HC3D       | 98.04 | 100   | 100    | 99.35 | 2.5cm,bf16,500iters | bf16         |
 
 
 ## 训练优化
@@ -47,14 +49,36 @@ Note:
 官方在 s3d 数据上微调训练时，`num_bins` 设置为 640，结合 `spatiallm/layout/entity.py` 中的 `NORMALIZATION_PRESET` 参数，
 可计算出其对点云的网格划分最小为 `32/640=0.05m`，该精度无法满足室内布局估计 2 到 5 cm的精度要求。
 
-以下实验均基于 `SpatialLM1.1-0.5B` 模型，采用 `s3d` 数据集进行训练，在 RTX 5090D 32GB 显卡下进行：
+以下实验均基于 `SpatialLM1.1-0.5B` 模型，采用 `s3d` 数据集进行训练，在 A100 80GB PCIE 显卡下进行：
 
 - `per_device_train_batch_size=1`
+- `num_train_epochs=1`
 
-| num_bins | resulution | Peak Mem | train prec                 | Note         |
-| -------- | ---------- | -------- | -------------------------- | ------------ |
-| 640      | 0.05       | OOM      | fp32                       | 101 step OOM |
-| 640      | 0.05       | OOM      | MLP+LLM bf16               | 288 step OOM |
-| 640      | 0.05       | OOM      | bf16,cutoff_len=4096       | 288 step OOM |
-| 640      | 0.05       | OOM      | bf16,cutoff_len=4096,zero2 | 101 step OOM |
+| num_bins | resulution | Peak Mem | train prec          | Note          |
+| -------- | ---------- | -------- | ------------------- | ------------- |
+| 640      | 5cm        | 43 GB    | fp32                |               |
+| 640      | 5cm        | 36 GB    | fp32 + bf16         |               |
+| 1280     | 2.5cm      | OOM      | fp32                | 64/321 steps  |
+| 1280     | 2.5cm      | OOM      | fp32 + bf16         | 152/321 steps |
+| 1280     | 2.5cm      | OOM      | fp32 + bf16 + zero2 | 152/321 steps |
+| 1280     | 2.5cm      | OOM      | fp32 + bf16 + cp    | 152/321 steps |
 
+
+
+| Dataset | Grid resolution | avg tokens per sample | max num toknens |
+| ------- | --------------- | --------------------- | --------------- |
+| S3D     | 5cm             | 1802.9                |                 |
+| S3D     | 2.5cm           |                       | 20160           |
+
+
+## Stride 实验
+
+S3D-pzhang 数据测试，指标 F1@0.5IoU/F1@0.75IoU
+
+| Grid size | Encoder stride | bf16 | wall        | door        | window      | Avg         | Note |
+| --------- | -------------- | ---- | ----------- | ----------- | ----------- | ----------- | ---- |
+| 5cm       | (2,2,2,2)      | ❌    | 91.92/88.21 | 93.92/91.84 | 89.34/78.10 | 91.73/86.05 |      |
+| 2.5cm     | (2,2,2,2)      | ✅    | -           | -           | -           | -           | OOM  |
+| 2.5cm     | (4,2,2,2)      | ✅    | 91.32/87.39 | 93.21/91.92 | 88.38/75.92 | 90.97/85.08 |      |
+| 2.5cm     | (3,2,2,2)      | ✅    | 91.45/87.96 | 93.79/92.65 | 90.52/81.79 | 91.92/87.47 |      |
+| 2cm       | (3,2,2,2)      | ✅    | 92.07/88.58 | 94.31/92.85 | 89.51/80.88 | 91.96/87.44 |      |

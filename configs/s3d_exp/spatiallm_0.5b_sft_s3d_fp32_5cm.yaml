@@ -23,15 +23,15 @@ dataloader_num_workers: 8
 save_dir: saves/structured3d-pzhang-g640
 
 ### output
-output_dir: saves/spatiallm-0.5b-s3d-pzhang-sft-e50
+output_dir: work_dirs/s3d_exp/spatiallm-0.5b-sft-fp32-5cm-e50
 logging_steps: 10
 save_steps: 500
 overwrite_output_dir: false
-save_total_limit: 2
+save_total_limit: 1
 
 ### train
 per_device_train_batch_size: 1
-gradient_accumulation_steps: 4
+gradient_accumulation_steps: 2
 learning_rate: 1.0e-4 # to be more aggressive: try to change the learning rate to 5.0e-5 or 1.0e-4
 adam_beta1: 0.9
 adam_beta2: 0.99
@@ -49,7 +49,15 @@ max_new_tokens: 4096
 
 ### eval
 # eval_dataset: structured3d_test
-val_size: 0.001 # 验证集相对所使用的训练数据集的大小。取值在 [0,1) 之间。
+val_size: 0.0001 # 验证集相对所使用的训练数据集的大小。取值在 [0,1) 之间。
 per_device_eval_batch_size: 1
 eval_strategy: steps
 eval_steps: 500
+
+#
+gradient_checkpointing: true
+flash_attn: sdpa
+optim: adamw_torch_fused
+
+disable_tqdm: false
+include_num_input_tokens_seen: true 
