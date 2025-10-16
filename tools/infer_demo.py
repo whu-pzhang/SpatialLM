@@ -1,5 +1,8 @@
+"""
+2025 德国 INTERGEO 展会大模型推理脚本
+"""
+
 import argparse
-import os
 import re
 import time
 import warnings
@@ -11,7 +14,6 @@ import numpy as np
 import open3d as o3d
 import torch
 from loguru import logger
-from tqdm import tqdm
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
@@ -28,89 +30,89 @@ warnings.filterwarnings("ignore")  # noqa
 
 
 def format_timing_message(record):
-    """自定义日志格式化函数，为耗时信息添加颜色高亮"""
+    """Custom log formatting function to add color highlighting to timing information"""
     message = record["message"]
     level = record["level"].name
-    
-    # 匹配耗时信息的正则表达式
-    timing_pattern = r'(\d+\.?\d*)(s|ms)'
-    
+
+    # Regex to match timing information
+    timing_pattern = r"(\d+\.?\d*)(s|ms)"
+
     def colorize_timing(match):
         value = float(match.group(1))
         unit = match.group(2)
-        
-        # 根据时长和单位选择颜色
-        if unit == 's':  # 秒
+
+        # Select color based on duration and unit
+        if unit == "s":  # seconds
             if value >= 10:
                 return f"<red><bold>{value}{unit}</bold></red>"
             elif value >= 1:
                 return f"<yellow><bold>{value}{unit}</bold></yellow>"
             else:
                 return f"<green><bold>{value}{unit}</bold></green>"
-        else:  # 毫秒
+        else:  # milliseconds
             if value >= 1000:
                 return f"<yellow><bold>{value}{unit}</bold></yellow>"
             else:
                 return f"<green><bold>{value}{unit}</bold></green>"
-    
-    # 替换耗时信息
+
+    # Replace timing information
     message = re.sub(timing_pattern, colorize_timing, message)
-    
-    # 为特定关键词添加颜色
+
+    # Add color to specific keywords
     keywords = {
-        'completed': '<green>completed</green>',
-        'failed': '<red>failed</red>',
-        'error': '<red>error</red>',
-        'success': '<green>success</green>',
-        'warning': '<yellow>warning</yellow>',
-        'loading': '<blue>loading</blue>',
-        'processing': '<cyan>processing</cyan>'
+        "completed": "<green>completed</green>",
+        "failed": "<red>failed</red>",
+        "error": "<red>error</red>",
+        "success": "<green>success</green>",
+        "warning": "<yellow>warning</yellow>",
+        "loading": "<blue>loading</blue>",
+        "processing": "<cyan>processing</cyan>",
     }
-    
+
     for keyword, colored in keywords.items():
         message = message.replace(keyword, colored)
-    
-    # 根据日志级别设置颜色
+
+    # Set color based on log level
     level_colors = {
-        'DEBUG': '<cyan>DEBUG</cyan>',
-        'INFO': '<blue>INFO</blue>',
-        'WARNING': '<yellow>WARNING</yellow>',
-        'ERROR': '<red>ERROR</red>',
-        'CRITICAL': '<red><bold>CRITICAL</bold></red>'
+        "DEBUG": "<cyan>DEBUG</cyan>",
+        "INFO": "<blue>INFO</blue>",
+        "WARNING": "<yellow>WARNING</yellow>",
+        "ERROR": "<red>ERROR</red>",
+        "CRITICAL": "<red><bold>CRITICAL</bold></red>",
     }
-    
+
     colored_level = level_colors.get(level, level)
-    
-    # 返回格式化的消息
+
+    # Return formatted message
     return f"{record['time']:YYYY-MM-DD HH:mm:ss} | {colored_level} | {message}\n"
 
 
 def configure_logger(debug_mode=False):
-    """配置日志系统"""
+    """Configure the logging system"""
     logger.remove()  # Remove default handler
-    
-    # 文件日志始终记录DEBUG级别
+
+    # File logger always records at DEBUG level
     logger.add(
         "spatiallm_infer_{time:YYYY-MM-DD}.log",
         rotation="1 day",
         retention="7 days",
         level="DEBUG",
         format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {name}:{function}:{line} | {message}",
-        encoding="utf-8"
+        encoding="utf-8",
     )
-    
-    # 控制台日志根据debug模式调整级别
+
+    # Console logger level is adjusted based on debug mode
     console_level = "DEBUG" if debug_mode else "INFO"
     logger.add(
         lambda msg: print(msg, end=""),
         level=console_level,
         format=format_timing_message,
-        colorize=True
+        colorize=True,
     )
-    
+
     if debug_mode:
         logger.info("🐛 Debug mode enabled - showing detailed logging information")
-    
+
     return logger
 
 
@@ -124,7 +126,7 @@ DETECT_TYPE_PROMPT = {
 def load_pcd_file(pcd_path):
     logger.info(f"Loading point cloud file: {pcd_path}")
     suffix = Path(pcd_path).suffix
-    
+
     try:
         if suffix == ".ply":
             logger.debug("Loading PLY file using Open3D")
@@ -135,7 +137,7 @@ def load_pcd_file(pcd_path):
         else:
             logger.error(f"Unsupported point cloud file format: {suffix}")
             raise ValueError("Unsupported point cloud file format")
-        
+
         logger.info(f"Successfully loaded point cloud with {len(pcd.points)} points")
         return pcd
     except Exception as e:
@@ -148,17 +150,17 @@ def load_las_file(las_path):
     load las file and convert to o3d.geometry.PointCloud
 
     Args:
-        las_path (str): las文件路径
+        las_path (str): Path to the LAS file.
     """
     logger.debug(f"Reading LAS file: {las_path}")
     las_file = laspy.read(las_path)
     logger.debug(f"LAS file contains {len(las_file.points)} points")
 
-    # 提取xyz坐标
+    # Extract XYZ coordinates
     points = np.vstack((las_file.x, las_file.y, las_file.z)).transpose()
     logger.debug(f"Extracted {points.shape[0]} XYZ coordinates")
 
-    # 尝试提取RGB颜色信息
+    # Attempt to extract RGB color information
     colors = None
     try:
         if (
@@ -166,7 +168,7 @@ def load_las_file(las_path):
             and hasattr(las_file, "green")
             and hasattr(las_file, "blue")
         ):
-            # 获取最大值用于归一化
+            # Get maximum values for normalization
             max_vals = [
                 las_file.red.max() if las_file.red.max() > 0 else 1,
                 las_file.green.max() if las_file.green.max() > 0 else 1,
@@ -174,20 +176,20 @@ def load_las_file(las_path):
             ]
             scale = np.array(max_vals)
 
-            # 提取RGB值并归一化到0-1范围
+            # Extract and normalize RGB values to the 0-1 range
             rgb = np.vstack((las_file.red, las_file.green, las_file.blue)).T
             colors = rgb / scale
         else:
-            logger.warning("未检测到RGB颜色信息")
+            logger.warning("RGB color information not detected.")
     except Exception as e:
-        logger.error(f"读取RGB颜色信息时出错: {str(e)}")
+        logger.error(f"Error reading RGB color information: {str(e)}")
         colors = None
 
-    # 创建Open3D点云对象
+    # Create an Open3D PointCloud object
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(points)
 
-    # 如果有颜色信息，则添加到点云中
+    # Add color information to the point cloud if available
     if colors is not None:
         pcd.colors = o3d.utility.Vector3dVector(colors)
 
@@ -196,8 +198,10 @@ def load_las_file(las_path):
 
 # ===============
 def preprocess_point_cloud(points, colors, grid_size, num_bins):
-    logger.debug(f"Preprocessing point cloud with {points.shape[0]} points, grid_size={grid_size}, num_bins={num_bins}")
-    
+    logger.debug(
+        f"Preprocessing point cloud with {points.shape[0]} points, grid_size={grid_size}, num_bins={num_bins}"
+    )
+
     transform = Compose(
         [
             dict(type="PositiveShift"),
@@ -213,7 +217,7 @@ def preprocess_point_cloud(points, colors, grid_size, num_bins):
             ),
         ]
     )
-    
+
     logger.debug("Applying point cloud transformations")
     point_cloud = transform(
         {
@@ -222,16 +226,18 @@ def preprocess_point_cloud(points, colors, grid_size, num_bins):
             "color": colors.copy(),
         }
     )
-    
+
     coord = point_cloud["grid_coord"]
     xyz = point_cloud["coord"]
     rgb = point_cloud["color"]
-    logger.debug(f"After transformation: coord shape={coord.shape}, xyz shape={xyz.shape}, rgb shape={rgb.shape}")
-    
+    logger.debug(
+        f"After transformation: coord shape={coord.shape}, xyz shape={xyz.shape}, rgb shape={rgb.shape}"
+    )
+
     point_cloud = np.concatenate([coord, xyz, rgb], axis=1)
     result = torch.as_tensor(np.stack([point_cloud], axis=0))
     logger.debug(f"Final preprocessed tensor shape: {result.shape}")
-    
+
     return result
 
 
@@ -250,9 +256,13 @@ def generate_layout(
     categories=[],
 ):
     generation_start = time.time()
-    logger.info(f"Starting layout generation with detect_type={detect_type}, seed={seed}")
-    logger.debug(f"Generation parameters: top_k={top_k}, top_p={top_p}, temperature={temperature}, num_beams={num_beams}, max_new_tokens={max_new_tokens}")
-    
+    logger.info(
+        f"Starting layout generation with detect_type={detect_type}, seed={seed}"
+    )
+    logger.debug(
+        f"Generation parameters: top_k={top_k}, top_p={top_p}, temperature={temperature}, num_beams={num_beams}, max_new_tokens={max_new_tokens}"
+    )
+
     if seed >= 0:
         logger.debug(f"Setting random seed to {seed}")
         set_seed(seed)
@@ -266,7 +276,9 @@ def generate_layout(
         template_time = time.time() - template_start
         logger.debug(f"📄 Code template loaded in {template_time:.3f}s")
     except Exception as e:
-        logger.error(f"Failed to load code template from {code_template_file}: {str(e)}")
+        logger.error(
+            f"Failed to load code template from {code_template_file}: {str(e)}"
+        )
         raise
 
     task_prompt = DETECT_TYPE_PROMPT[detect_type]
@@ -330,9 +342,9 @@ def generate_layout(
     generate_texts = []
     for text in streamer:
         generate_texts.append(text)
-        # 只记录非空且有意义的文本块，去除换行符
+        # Log only non-empty and meaningful text chunks, removing newlines
         if text and text.strip():
-            clean_text = text.replace('\n', '\\n').replace('\r', '\\r')
+            clean_text = text.replace("\n", "\\n").replace("\r", "\\r")
             logger.info(f"Generated layout chunk: {clean_text}")
     inference_time = time.time() - inference_start
     logger.info(f"🎯 Layout generation completed in {inference_time:.2f}s!")
@@ -343,7 +355,9 @@ def generate_layout(
     layout.undiscretize_and_unnormalize(num_bins=model.config.point_config["num_bins"])
     layout_parse_time = time.time() - layout_parse_start
     total_generation_time = time.time() - generation_start
-    logger.debug(f"📊 Layout parsing completed in {layout_parse_time:.3f}s | ⏱️ Total generation time: {total_generation_time:.2f}s")
+    logger.debug(
+        f"📊 Layout parsing completed in {layout_parse_time:.3f}s | ⏱️ Total generation time: {total_generation_time:.2f}s"
+    )
     return layout
 
 
@@ -361,7 +375,7 @@ def parse_args():
         "--output",
         type=str,
         required=True,
-        help="Path to the output layout txt file or a folder to save multiple layout txt files",
+        help="Path to the output folder to save the layout txt files",
     )
     parser.add_argument(
         "-m",
@@ -440,17 +454,17 @@ def parse_args():
 if __name__ == "__main__":
     program_start_time = time.time()
     args = parse_args()
-    
-    # 配置日志系统
+
+    # Configure logging system
     logger = configure_logger(debug_mode=args.debug)
 
     logger.info(f"Model path: {args.model_path}")
     logger.info(f"Point cloud input: {args.point_cloud}")
     logger.info(f"Output path: {args.output}")
     logger.info(f"Detection type: {args.detect_type}")
-    
+
     if args.debug:
-        logger.debug(f"🔧 Debug mode parameters:")
+        logger.debug("🔧 Debug mode parameters:")
         logger.debug(f"  - Code template: {args.code_template_file}")
         logger.debug(f"  - Top-k: {args.top_k}")
         logger.debug(f"  - Top-p: {args.top_p}")
@@ -473,13 +487,15 @@ if __name__ == "__main__":
         tokenizer = AutoTokenizer.from_pretrained(args.model_path)
         tokenizer_time = time.time() - tokenizer_start
         logger.info(f"⚡ Tokenizer loaded successfully in {tokenizer_time:.2f}s")
-        
+
         model_start = time.time()
         model = AutoModelForCausalLM.from_pretrained(
             args.model_path, torch_dtype=getattr(torch, args.inference_dtype)
         )
         model_time = time.time() - model_start
-        logger.info(f"🧠 Model loaded with dtype {args.inference_dtype} in {model_time:.2f}s")
+        logger.info(
+            f"🧠 Model loaded with dtype {args.inference_dtype} in {model_time:.2f}s"
+        )
 
         cuda_start = time.time()
         model.to("cuda")
@@ -487,7 +503,9 @@ if __name__ == "__main__":
         model.eval()
         cuda_time = time.time() - cuda_start
         total_load_time = time.time() - model_load_start
-        logger.info(f"🚀 Model moved to CUDA in {cuda_time:.2f}s | 📊 Total load time: {total_load_time:.2f}s")
+        logger.info(
+            f"🚀 Model moved to CUDA in {cuda_time:.2f}s | 📊 Total load time: {total_load_time:.2f}s"
+        )
     except Exception as e:
         logger.error(f"Failed to load model: {str(e)}")
         raise
@@ -497,14 +515,13 @@ if __name__ == "__main__":
     logger.debug(f"Using {num_bins} bins for discretization")
 
     # check if the input is a single point cloud file or a folder containing multiple point cloud files
-    if os.path.isfile(args.point_cloud):
-        point_cloud_files = [args.point_cloud]
+    input_path = Path(args.point_cloud)
+    if input_path.is_file():
+        point_cloud_files = [input_path.as_posix()]
         logger.info("Processing single point cloud file")
     else:
         point_cloud_files = [
-            f.as_posix()
-            for f in Path(args.point_cloud).glob("*")
-            if f.suffix in [".las", ".ply"]
+            f.as_posix() for f in input_path.glob("*") if f.suffix in [".las", ".ply"]
         ]
         logger.info(f"Found {len(point_cloud_files)} point cloud files to process")
 
@@ -518,7 +535,7 @@ if __name__ == "__main__":
             point_cloud = load_pcd_file(point_cloud_file)
             load_time = time.time() - load_start
             logger.info(f"📁 Point cloud loaded in {load_time:.2f}s")
-            
+
             grid_size = Layout.get_grid_size(num_bins)
             logger.debug(f"Grid size: {grid_size}")
 
@@ -533,13 +550,17 @@ if __name__ == "__main__":
             points, colors = get_points_and_colors(point_cloud)
             min_extent = np.min(points, axis=0)
             extract_time = time.time() - extract_start
-            logger.debug(f"📐 Point cloud extent extracted in {extract_time:.2f}s: min={min_extent}")
+            logger.debug(
+                f"📐 Point cloud extent extracted in {extract_time:.2f}s: min={min_extent}"
+            )
 
             # Preprocess point cloud
             preprocess_start = time.time()
             input_pcd = preprocess_point_cloud(points, colors, grid_size, num_bins)
             preprocess_time = time.time() - preprocess_start
-            logger.info(f"⚙️ Point cloud preprocessing completed in {preprocess_time:.2f}s")
+            logger.info(
+                f"⚙️ Point cloud preprocessing completed in {preprocess_time:.2f}s"
+            )
 
             # Generate the layout
             generation_start = time.time()
@@ -556,71 +577,64 @@ if __name__ == "__main__":
                 detect_type=args.detect_type,
             )
             generation_time = time.time() - generation_start
-            
+
             layout.translate(min_extent)
             pred_language_string = layout.to_language_string()
 
             # Save the output
             save_start = time.time()
-            if os.path.splitext(args.output)[-1]:
-                logger.info(f"Saving output to file: {args.output}")
-                with open(args.output, "w") as f:
-                    f.write(pred_language_string)
-                stem = Path(args.output).stem
-                
-                # Convert to 2D DXF
-                dxf_2d_start = time.time()
-                dxf_2d_file = Path(args.output).parent.joinpath(f"{stem}_2d.dxf")
-                logger.debug(f"Converting to 2D DXF: {dxf_2d_file}")
-                txt2dxf(input_file=args.output, output_file=dxf_2d_file, verbose=False)
-                dxf_2d_time = time.time() - dxf_2d_start
-                
-                # Convert to 3D DXF
-                dxf_3d_start = time.time()
-                dxf_3d_file = Path(args.output).parent.joinpath(f"{stem}_3d.dxf")
-                logger.debug(f"Converting to 3D DXF: {dxf_3d_file}")
-                converter = Txt2DxfConverter(
-                    input_file=args.output, output_file=dxf_3d_file
-                )
-                converter.convert()
-                dxf_3d_time = time.time() - dxf_3d_start
-            else:
-                output_filename = os.path.basename(point_cloud_file).replace(".ply", ".txt")
-                os.makedirs(args.output, exist_ok=True)
-                output_filepath = os.path.join(args.output, output_filename)
-                logger.info(f"Saving output to directory: {output_filepath}")
-                stem = Path(output_filepath).stem
-                with open(output_filepath, "w") as f:
-                    f.write(pred_language_string)
-                
-                # Convert to 2D DXF
-                dxf_2d_start = time.time()
-                dxf_2d_file = Path(output_filepath).parent.joinpath(f"{stem}_2d.dxf")
-                logger.debug(f"Converting to 2D DXF: {dxf_2d_file}")
-                txt2dxf(
-                    input_file=output_filepath, output_file=str(dxf_2d_file), verbose=False
-                )
-                dxf_2d_time = time.time() - dxf_2d_start
-                
-                # Convert to 3D DXF
-                dxf_3d_start = time.time()
-                dxf_3d_file = Path(output_filepath).parent.joinpath(f"{stem}_3d.dxf")
-                logger.debug(f"Converting to 3D DXF: {dxf_3d_file}")
-                converter = Txt2DxfConverter(
-                    input_file=output_filepath, output_file=dxf_3d_file
-                )
-                converter.convert()
-                dxf_3d_time = time.time() - dxf_3d_start
-            
+            output_dir = Path(args.output)
+            output_dir.mkdir(parents=True, exist_ok=True)
+
+            input_file_path = Path(point_cloud_file)
+            output_filename = input_file_path.stem + ".txt"
+            output_filepath = output_dir / output_filename
+
+            logger.info(f"Saving output to directory: {output_filepath}")
+            stem = output_filepath.stem
+            with open(output_filepath, "w") as f:
+                f.write(pred_language_string)
+
+            # Convert to 2D DXF
+            dxf_2d_start = time.time()
+            # dxf_2d_file = output_filepath.with_name(f"{stem}_2d.dxf")
+            dxf_2d_file = output_dir / "large_model_2d.dxf"
+            logger.debug(f"Converting to 2D DXF: {dxf_2d_file}")
+            txt2dxf(
+                input_file=str(output_filepath),
+                output_file=str(dxf_2d_file),
+                verbose=args.debug,
+            )
+            dxf_2d_time = time.time() - dxf_2d_start
+
+            # Convert to 3D DXF
+            dxf_3d_start = time.time()
+            # dxf_3d_file = output_filepath.with_name(f"{stem}_3d.dxf")
+            dxf_3d_file = output_dir / "large_model_3d.dxf"
+            logger.debug(f"Converting to 3D DXF: {dxf_3d_file}")
+            converter = Txt2DxfConverter(
+                input_file=str(output_filepath), output_file=str(dxf_3d_file)
+            )
+            converter.convert()
+            dxf_3d_time = time.time() - dxf_3d_start
+
             save_time = time.time() - save_start
             file_total_time = time.time() - file_start_time
-            logger.info(f"💾 File saved and converted in {save_time:.2f}s | 📐 2D DXF: {dxf_2d_time:.2f}s | 🏗️ 3D DXF: {dxf_3d_time:.2f}s")
-            logger.info(f"✅ Total processing time for {os.path.basename(point_cloud_file)}: {file_total_time:.2f}s")
-                
+            logger.info(
+                f"💾 File saved and converted in {save_time:.2f}s | 📐 2D DXF: {dxf_2d_time:.2f}s | 🏗️ 3D DXF: {dxf_3d_time:.2f}s"
+            )
+            logger.info(
+                f"✅ Total processing time for {Path(point_cloud_file).name}: {file_total_time:.2f}s"
+            )
+
         except Exception as e:
             file_error_time = time.time() - file_start_time
-            logger.error(f"❌ Failed to process {point_cloud_file} after {file_error_time:.2f}s: {str(e)}")
+            logger.error(
+                f"❌ Failed to process {point_cloud_file} after {file_error_time:.2f}s: {str(e)}"
+            )
             continue
-            
+
     program_total_time = time.time() - program_start_time
-    logger.info(f"🎉 All point cloud files processed successfully in {program_total_time:.2f}s")
+    logger.info(
+        f"🎉 All point cloud files processed successfully in {program_total_time:.2f}s"
+    )
