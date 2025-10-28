@@ -1,0 +1,63 @@
+### model
+model_name_or_path: manycore-research/SpatialLM1.1-Qwen-0.5B
+# model_name_or_path: saves/spatiallm-0.5b-s3d-pzhang-sft-e50/checkpoint-16050
+trust_remote_code: true
+
+### method
+do_train: true
+freeze_language_tower: false
+freeze_point_tower: false
+train_proj_only: false
+
+### dataset
+dataset: HC3D_train # HC3D_train,HC3D_test
+dataset_dir: data/HC3D/20251027 # HC3D-spatiallm
+template: spatiallm_qwen # spatiallm_qwen, spatiallm_llama
+num_bins: 1280
+do_augmentation: false
+random_rotation: false
+cutoff_len: 8192 # 输入的最大token数，超过会被截断
+overwrite_cache: true # 覆盖缓存的训练和评估数据集
+preprocessing_num_workers: 8
+dataloader_num_workers: 8
+save_dir: data/HC3D/20251027/HC3D-g1280
+
+### output
+output_dir: work_dirs/hc3d_exp_02/spatiallm-0.5b-sft-hc3d-g1280-e200
+logging_steps: 10
+save_steps: 850 # 50 epochs
+overwrite_output_dir: false
+save_total_limit: 5
+
+### train
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 4
+learning_rate: 1.0e-4 # to be more aggressive: try to change the learning rate to 5.0e-5 or 1.0e-4
+adam_beta1: 0.9
+adam_beta2: 0.99
+adam_epsilon: 1.0e-8
+num_train_epochs: 200 # total training epochs
+lr_scheduler_type: cosine
+warmup_ratio: 0.03
+pure_bf16: true
+bf16: true
+fp16: false
+tf32: false
+ddp_timeout: 180000000
+report_to: tensorboard # choices: [none, wandb, tensorboard, swanlab]
+max_new_tokens: 4096
+
+### eval
+eval_dataset: HC3D_test
+# val_size: 0.0001 # 验证集相对所使用的训练数据集的大小。取值在 [0,1) 之间。
+per_device_eval_batch_size: 1
+eval_strategy: steps
+eval_steps: 200
+
+#
+gradient_checkpointing: true
+flash_attn: sdpa
+optim: adamw_torch_fused
+
+disable_tqdm: false
+include_num_input_tokens_seen: true 
