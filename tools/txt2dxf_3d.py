@@ -1,12 +1,14 @@
 """
-将SpatialLM预测的结果转换为 dxf 文件，方便后续进行评测和可视化。
+Converts the prediction results of SpatialLM into a DXF file for subsequent
+evaluation and visualization.
 
 
-1. 读取 SpatialLM 预测的文本文件，解析其中的几何信息: 可参考 spatiallm/layout
-2. 将 Wall door 和 Windows 实体分别转换为三维的 DXF 实体
+1. Read the text file predicted by SpatialLM and parse the geometric information:
+   refer to spatiallm/layout
+2. Convert Wall, Door, and Window entities into 3D DXF entities.
 
 
-spatiallm 文本格式示例:
+Example of spatiallm text format:
 
 wall_k = Wall(ax, ay, az, bx, by, bz, height, thickness)
 door_i   = Door(wall_id, cx, cy, cz, width, height)
@@ -27,18 +29,20 @@ try:
     DEPENDENCIES_AVAILABLE = True
 except ImportError as e:
     DEPENDENCIES_AVAILABLE = False
-    print(f"警告: 缺少必要的依赖库: {e}")
-    print("请安装: pip install ezdxf")
+    print(f"Warning: Missing required dependencies: {e}")
+    print("Please install: pip install ezdxf")
 
 
 class Txt2DxfConverter:
     """
-    将 SpatialLM 文本文件转换为 DXF 文件的转换器。
+    Converter for transforming SpatialLM text files into DXF files.
     """
 
     def __init__(self, input_file: str, output_file: str):
         if not DEPENDENCIES_AVAILABLE:
-            raise ImportError("ezdxf 库不可用，无法执行转换")
+            raise ImportError(
+                "ezdxf library is not available, cannot perform conversion"
+            )
 
         self.input_file = input_file
         self.output_file = output_file
@@ -49,9 +53,9 @@ class Txt2DxfConverter:
         self._setup_layers()
 
     def _parse_txt_file(self) -> Layout:
-        """解析 SpatialLM 预测的文本文件，提取几何信息"""
+        """Parse the SpatialLM prediction text file to extract geometric info."""
         if not os.path.exists(self.input_file):
-            raise FileNotFoundError(f"文件不存在: {self.input_file}")
+            raise FileNotFoundError(f"File not found: {self.input_file}")
 
         with open(self.input_file, "r", encoding="utf-8") as f:
             content = f.read()
@@ -60,14 +64,14 @@ class Txt2DxfConverter:
         return layout
 
     def _setup_layers(self):
-        """设置 DXF 文件所需的图层"""
+        """Set up the necessary layers for the DXF file."""
         self.doc.layers.new(name="Walls", dxfattribs={"color": 1})
         self.doc.layers.new(name="Doors", dxfattribs={"color": 3})
         self.doc.layers.new(name="Windows", dxfattribs={"color": 4})
 
     @staticmethod
     def _create_wall_vertices(wall: Wall) -> list:
-        """为墙体创建线框顶点"""
+        """Create wireframe vertices for a wall."""
         ax, ay, az = wall.ax, wall.ay, wall.az
         bx, by, bz = wall.bx, wall.by, wall.bz
         height = wall.height
@@ -81,7 +85,7 @@ class Txt2DxfConverter:
 
     @staticmethod
     def _create_fixture_vertices(fixture: Door | Window, wall: Wall) -> list:
-        """为门或窗创建线框顶点"""
+        """Create wireframe vertices for a door or window."""
         cx, cy, cz = fixture.position_x, fixture.position_y, fixture.position_z
         width = fixture.width
         height = fixture.height
@@ -108,10 +112,10 @@ class Txt2DxfConverter:
         ]
 
     def convert(self):
-        """执行转换过程，生成 DXF 文件"""
+        """Execute the conversion process to generate the DXF file."""
         wall_map = {wall.id: wall for wall in self.layout.walls}
 
-        # 绘制墙体
+        # Draw walls
         for wall in self.layout.walls:
             vertices = self._create_wall_vertices(wall)
             if vertices:
@@ -119,7 +123,7 @@ class Txt2DxfConverter:
                     vertices, close=True, dxfattribs={"layer": "Walls"}
                 )
 
-        # 绘制门
+        # Draw doors
         for door in self.layout.doors:
             wall = wall_map.get(door.wall_id)
             if wall:
@@ -129,7 +133,7 @@ class Txt2DxfConverter:
                         vertices, close=True, dxfattribs={"layer": "Doors"}
                     )
 
-        # 绘制窗
+        # Draw windows
         for window in self.layout.windows:
             wall = wall_map.get(window.wall_id)
             if wall:
@@ -142,21 +146,21 @@ class Txt2DxfConverter:
         self._save()
 
     def _save(self):
-        """保存 DXF 文件"""
+        """Save the DXF file."""
         self.doc.saveas(self.output_file)
-        # print(f"DXF 文件已保存到: {self.output_file}")
+        # print(f"DXF file saved to: {self.output_file}")
 
 
 def main():
-    """主函数"""
+    """Main function."""
     if len(sys.argv) != 3:
-        print("用法: python txt2dxf_3d.py <输入文本文件> <输出DXF文件>")
+        print("Usage: python txt2dxf_3d.py <input_text_file> <output_dxf_file>")
         sys.exit(1)
 
-    # 检查依赖
+    # Check dependencies
     if not DEPENDENCIES_AVAILABLE:
-        print("\n错误: 缺少必要的依赖库。请先安装 ezdxf。")
-        print("命令: pip install ezdxf")
+        print("\nError: Missing required dependencies. Please install ezdxf first.")
+        print("Command: pip install ezdxf")
         sys.exit(1)
 
     input_file = sys.argv[1]
@@ -167,7 +171,7 @@ def main():
         converter.convert()
         return 0
     except (FileNotFoundError, ImportError, Exception) as e:
-        print(f"\n错误: {e}")
+        print(f"\nError: {e}")
         return 1
 
 
