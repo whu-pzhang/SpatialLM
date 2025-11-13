@@ -9,3 +9,4 @@ class PointBackboneType(Enum):
 class ProjectorType(Enum):
     LINEAR = "linear"
     MLP = "mlp"
+    PATCH_MERGER = "patch_merger"

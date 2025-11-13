@@ -86,6 +86,16 @@ class SpatialLMQwenForCausalLM(Qwen2ForCausalLM):
                 nn.GELU(),
                 nn.Linear(embed_channels, config.hidden_size),
             )
+        elif self.projector_type == ProjectorType.PATCH_MERGER:
+            from spatiallm.model.layers import PatchMerger
+
+            # use the PatchMerger from Qwen2-VL
+            # make seq_len reduction by 4 times if spatial_merge_size=2
+            self.point_proj = PatchMerger(
+                dim=config.hidden_size,
+                context_dim=embed_channels,
+                spatial_merge_size=2,
+            )
         else:
             raise ValueError(f"Unknown projector type: {self.projector_type}")
 
@@ -120,6 +130,14 @@ class SpatialLMQwenForCausalLM(Qwen2ForCausalLM):
             encoded_features = self.point_backbone(input_dict)
             # add the batch dimension
             encoded_features = encoded_features.unsqueeze(0)
+
+            # make sure feature length is divisible by patch_merger.spatial_merge_size ** 2
+            seq_len = encoded_features.shape[1]
+            if self.projector_type == ProjectorType.PATCH_MERGER:
+                reducetion_factor = self.point_proj.spatial_merge_size**2
+                new_seq_len = seq_len // reducetion_factor * reducetion_factor
+                encoded_features = encoded_features[:, :new_seq_len, :]
+
             return self.point_proj(encoded_features.to(dtype))
         else:
             raise ValueError(f"Unknown point backbone type: {self.point_backbone_type}")
