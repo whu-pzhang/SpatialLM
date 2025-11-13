@@ -45,6 +45,15 @@ class Wall:
         self.height = float(self.height)
         self.thickness = float(self.thickness)
 
+    def clip_z(self, z_min: float, z_max: float):
+        """Clip z coordinates to be within [z_min, z_max]"""
+        top_z = max(self.az, self.bz) + self.height
+        top_z = np.clip(top_z, z_min, z_max)
+        self.az = np.clip(self.az, z_min, z_max)
+        self.bz = np.clip(self.bz, z_min, z_max)
+        # compute height again
+        self.height = top_z - max(self.az, self.bz)
+
     def rotate(self, angle: float):
         wall_start = np.array([self.ax, self.ay, self.az])
         wall_end = np.array([self.bx, self.by, self.bz])
@@ -166,6 +175,15 @@ class Door:
         self.position_z = float(self.position_z)
         self.width = float(self.width)
         self.height = float(self.height)
+
+    def clip_z(self, z_min: float, z_max: float):
+        """Clip z coordinates to be within [z_min, z_max]"""
+        az = self.position_z - self.height / 2
+        bz = self.position_z + self.height / 2
+        az = np.clip(az, z_min, z_max)
+        bz = np.clip(bz, z_min, z_max)
+        self.position_z = (az + bz) / 2
+        self.height = np.abs(az - bz)
 
     def rotate(self, angle: float):
         center = np.array([self.position_x, self.position_y, self.position_z])
