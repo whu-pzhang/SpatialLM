@@ -4,8 +4,9 @@ import random
 from pathlib import Path
 
 import pandas as pd
-from spatiallm.layout.layout import Layout
 from tqdm import tqdm
+
+from spatiallm.layout.layout import Layout
 
 random.seed(42)
 
@@ -123,7 +124,11 @@ def generate_split_csv(data_root, split_file=None, train_ratio=0.8):
             print(f"Generated split file: {split_file_path}")
 
 
-def generate_train_csv(data_root, val_csv_file="val.csv"):
+def generate_train_csv(
+    data_root,
+    subfolders=["20251110", "20251127"],
+    val_csv_file="val.csv",
+):
     """
     Generate training CSV file by excluding validation samples from all available data.
 
@@ -132,17 +137,25 @@ def generate_train_csv(data_root, val_csv_file="val.csv"):
         val_csv_file (str): Name of the validation CSV file to exclude from training data
     """
     data_root = Path(data_root)
-    pcd_dir = data_root / "pcd"
-    layout_dir = data_root / "layout"
 
-    # 检查目录是否存在
-    if not pcd_dir.exists():
-        raise FileNotFoundError(f"PCD directory not found: {pcd_dir}")
-    if not layout_dir.exists():
-        raise FileNotFoundError(f"Layout directory not found: {layout_dir}")
+    pcd_list = []
+    layout_list = []
 
-    pcd_list = sorted([f for f in pcd_dir.glob("*.ply")])
-    layout_list = sorted([f for f in layout_dir.glob("*.txt")])
+    for subfolder in subfolders:
+        pcd_dir = data_root.joinpath(subfolder, "pcd")
+        layout_dir = data_root.joinpath(subfolder, "layout")
+
+        # 检查目录是否存在
+        if not pcd_dir.exists():
+            raise FileNotFoundError(f"PCD directory not found: {pcd_dir}")
+        if not layout_dir.exists():
+            raise FileNotFoundError(f"Layout directory not found: {layout_dir}")
+
+        pcd_list.extend(sorted([f for f in pcd_dir.glob("*.ply")]))
+        layout_list.extend(sorted([f for f in layout_dir.glob("*.txt")]))
+
+    pcd_list = sorted(pcd_list)
+    layout_list = sorted(layout_list)
 
     # 检查点云文件和布局文件是否匹配
     pcd_stems = set([f.stem for f in pcd_list])
@@ -172,7 +185,10 @@ def generate_train_csv(data_root, val_csv_file="val.csv"):
     with train_csv_path.open("w") as f:
         f.write("id,pcd,layout\n")
         for pcd_file in train_pcds:
-            layout_file = layout_dir / f"{pcd_file.stem}.txt"
+            # layout_file = layout_dir / f"{pcd_file.stem}.txt"
+            layout_file = Path(str(pcd_file).replace("pcd", "layout")).with_suffix(
+                ".txt"
+            )
             f.write(
                 f"{pcd_file.stem},{pcd_file.relative_to(data_root)},{layout_file.relative_to(data_root)}\n"
             )

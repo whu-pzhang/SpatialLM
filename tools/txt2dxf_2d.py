@@ -32,7 +32,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 try:
     import ezdxf
-
     from spatiallm.layout.layout import Layout
 
     DEPENDENCIES_AVAILABLE = True
@@ -162,8 +161,9 @@ class ConnectedComponentAnalyzer:
 class PolygonBuilder:
     """Builds polygons from connected wall segments."""
 
-    def __init__(self, tolerance: float = 1e-3):
+    def __init__(self, tolerance: float = 1e-3, keep_open_walls: bool = False):
         self.tolerance = tolerance
+        self.keep_open_walls = keep_open_walls
 
     def build_polygons(
         self, wall_segments: List[WallSegment]
@@ -187,6 +187,16 @@ class PolygonBuilder:
                 wall, adjacency, used_walls, wall_segments
             )
             polygons.extend(polygons_from_wall)
+
+        # If keep_open_walls is True, add open wall segments as polylines
+        if self.keep_open_walls:
+            open_walls = [
+                wall for wall in wall_segments if wall.wall_id not in used_walls
+            ]
+            for wall in open_walls:
+                # Add open wall as a simple line segment (2-point polygon)
+                open_poly = [wall.start_point, wall.end_point]
+                polygons.append(open_poly)
 
         return polygons
 
@@ -298,6 +308,9 @@ class DXFGenerator:
         for i, polygon in enumerate(polygons):
             if len(polygon) >= 3:
                 self._add_polygon_to_dxf(polygon, self.layer_name)
+            elif len(polygon) == 2:
+                # Handle open wall segments (line segments)
+                self._add_line_to_dxf(polygon, self.layer_name)
 
         # Save the DXF file
         self.doc.saveas(output_file)
@@ -314,6 +327,12 @@ class DXFGenerator:
         lwpolyline = self.msp.add_lwpolyline(points)
         lwpolyline.dxf.layer = layer_name
         lwpolyline.closed = True
+
+    def _add_line_to_dxf(self, line: List[Tuple[float, float]], layer_name: str):
+        """Add a line segment (open wall) to the DXF file."""
+        # Create a LINE entity for open wall segments
+        line_entity = self.msp.add_line(line[0], line[1])
+        line_entity.dxf.layer = layer_name
 
 
 def parse_spatiallm_text(text_file: str) -> List[WallSegment]:
@@ -342,6 +361,7 @@ def txt2dxf(
     output_file: str,
     layer_name: str = "wall_poly",
     verbose=False,
+    keep_open_walls=False,
 ):
     wall_segments = parse_spatiallm_text(input_file)
 
@@ -353,7 +373,7 @@ def txt2dxf(
     components = analyzer.find_connected_components(wall_segments)
 
     all_polygons = []
-    builder = PolygonBuilder(tolerance=1e-3)
+    builder = PolygonBuilder(tolerance=1e-3, keep_open_walls=keep_open_walls)
 
     for i, component in enumerate(components):
         if verbose:
@@ -407,6 +427,11 @@ Example usage:
     parser.add_argument(
         "--verbose", "-v", action="store_true", help="Show detailed information"
     )
+    parser.add_argument(
+        "--keep-open-walls",
+        action="store_true",
+        help="Keep open walls (non-closed wall segments) in the output",
+    )
 
     args = parser.parse_args()
 
@@ -429,6 +454,7 @@ Example usage:
             output_file=output_file,
             layer_name=args.layer,
             verbose=args.verbose,
+            keep_open_walls=args.keep_open_walls,
         )
 
         return 0

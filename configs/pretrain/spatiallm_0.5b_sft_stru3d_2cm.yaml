@@ -1,6 +1,6 @@
 ### model
-# model_name_or_path: ysmao/SpatialLM1.1-Qwen-0.5B-Structured3D-SFT
-model_name_or_path: ./weights/manycore-research/SpatialLM1.1-Qwen-0.5B
+model_name_or_path: manycore-research/SpatialLM1.1-Qwen-0.5B
+# model_name_or_path: saves/spatiallm-0.5b-s3d-pzhang-sft-e50/checkpoint-16050
 trust_remote_code: true
 
 ### method
@@ -10,24 +10,24 @@ freeze_point_tower: false
 train_proj_only: false
 
 ### dataset
-dataset: structured3d_train # structured3d_train,structured3d_test
-dataset_dir: data/structured3d-spatiallm-pzhang # structured3d-spatiallm
+dataset: stru3d_train # 
+dataset_dir: data/stru3d_clipped #
 template: spatiallm_qwen # spatiallm_qwen, spatiallm_llama
 num_bins: 1600
 do_augmentation: false
-random_rotation: false
+random_rotation: true
 cutoff_len: 8192 # 输入的最大token数，超过会被截断
 overwrite_cache: true # 覆盖缓存的训练和评估数据集
 preprocessing_num_workers: 8
 dataloader_num_workers: 8
-save_dir: saves/structured3d-pzhang-g1600
+save_dir: data/stru3d_clipped/stru3d-g1600
 
 ### output
-output_dir: work_dirs/s3d_exp/spatiallm-0.5b-s3d-pzhang-sft-e50
+output_dir: work_dirs/pretrain/spatiallm-0.5b-sft-stru3d-g1600-e50
 logging_steps: 10
 save_steps: 500
 overwrite_output_dir: false
-save_total_limit: 1
+save_total_limit: 2
 
 ### train
 per_device_train_batch_size: 1
@@ -36,7 +36,7 @@ learning_rate: 1.0e-4 # to be more aggressive: try to change the learning rate t
 adam_beta1: 0.9
 adam_beta2: 0.99
 adam_epsilon: 1.0e-8
-num_train_epochs: 50
+num_train_epochs: 50 # total training epochs
 lr_scheduler_type: cosine
 warmup_ratio: 0.03
 pure_bf16: true
@@ -48,8 +48,8 @@ report_to: tensorboard # choices: [none, wandb, tensorboard, swanlab]
 max_new_tokens: 4096
 
 ### eval
-# eval_dataset: structured3d_test
-val_size: 0.0001 # 验证集相对所使用的训练数据集的大小。取值在 [0,1) 之间。
+eval_dataset: stru3d_val
+# val_size: 0.0001 # 验证集相对所使用的训练数据集的大小。取值在 [0,1) 之间。
 per_device_eval_batch_size: 1
 eval_strategy: steps
 eval_steps: 500
@@ -60,4 +60,4 @@ flash_attn: sdpa
 optim: adamw_torch_fused
 
 disable_tqdm: false
-include_num_input_tokens_seen: false
+include_num_input_tokens_seen: false 
