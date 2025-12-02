@@ -149,6 +149,8 @@ class SpatialLMQwenForCausalLM(Qwen2ForCausalLM):
     def set_llm_dtype(self, dtype: torch.dtype):
         for param in self.model.parameters():
             param.data = param.data.to(dtype)
+        for param in self.lm_head.parameters():
+            param.data = param.data.to(dtype)
 
     def set_mlp_dtype(self, dtype: torch.dtype):
         for param in self.point_proj.parameters():
