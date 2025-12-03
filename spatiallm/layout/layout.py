@@ -188,6 +188,10 @@ class Layout:
         for entity in self.get_entities():
             entity.undiscretize_and_unnormalize(num_bins)
 
+    def clip_z(self, z_min, z_max):
+        for entity in self.get_entities():
+            entity.clip_z(z_min, z_max)
+
     def translate(self, translation: np.ndarray):
         for entity in self.get_entities():
             entity.translate(translation)
