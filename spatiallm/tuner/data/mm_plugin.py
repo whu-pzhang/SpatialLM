@@ -31,6 +31,8 @@ class SpatialLMPlugin:
         num_bins: int = 1280,
         do_augmentation: bool = False,
         random_rotation: bool = False,
+        random_scale: bool = False,
+        max_points: Optional[int] = None,
     ):
         self.point_token = point_token
 
@@ -39,6 +41,8 @@ class SpatialLMPlugin:
         self.grid_size = (global_extent[1] - global_extent[0]) / self.num_bins
         self.do_augmentation = do_augmentation
         self.random_rotation = random_rotation
+        self.random_scale = random_scale
+        self.max_points = max_points
         self.augmentation = Compose(
             [
                 dict(type="RandomColorGrayScale", p=0.05),
@@ -71,6 +75,7 @@ class SpatialLMPlugin:
                     keys=("coord", "color"),
                     return_grid_coord=True,
                     max_grid_coord=self.num_bins,
+                    max_points=self.max_points,
                 ),
             ]
         )
@@ -136,7 +141,10 @@ class SpatialLMPlugin:
             else:
                 angle_z = np.random.choice(np.array([0, 0.5, 1.0, 1.5]) * np.pi)
 
-            scaling = np.random.uniform(0.75, 1.25)
+            if self.random_scale:
+                scaling = np.random.uniform(0.75, 1.25)
+            else:
+                scaling = 1.0
             rotmat = R.from_rotvec(np.array([0, 0, angle_z])).as_matrix()
             min_bound = points.min(axis=0)
             max_bound = points.max(axis=0)

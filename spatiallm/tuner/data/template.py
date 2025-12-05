@@ -317,6 +317,7 @@ def register_spatiallm_templates(
     num_bins: int = 1280,
     do_augmentation: bool = False,
     random_rotation: bool = False,
+    random_scale: bool = False,
 ):
     register_template(
         name="spatiallm_llama",
@@ -340,6 +341,7 @@ def register_spatiallm_templates(
             num_bins=num_bins,
             do_augmentation=do_augmentation,
             random_rotation=random_rotation,
+            random_scale=random_scale,
         ),
         cutoff_len=cutoff_len,
     )
@@ -360,6 +362,7 @@ def register_spatiallm_templates(
             num_bins=num_bins,
             do_augmentation=do_augmentation,
             random_rotation=random_rotation,
+            random_scale=random_scale,
         ),
         cutoff_len=cutoff_len,
     )

@@ -111,6 +111,7 @@ def run_sft(
         num_bins=data_args.num_bins,
         do_augmentation=data_args.do_augmentation,
         random_rotation=data_args.random_rotation,
+        random_scale=data_args.random_scale,
     )
 
     template = get_template_and_fix_tokenizer(tokenizer, data_args)

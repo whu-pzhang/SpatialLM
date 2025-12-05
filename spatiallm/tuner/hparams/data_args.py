@@ -127,6 +127,10 @@ class DataArguments:
         default=False,
         metadata={"help": "Whether or not to do non axis-aligned random rotation."},
     )
+    random_scale: bool = field(
+        default=False,
+        metadata={"help": "Whether or not to do random scaling."},
+    )
 
     def __post_init__(self):
         def split_arg(arg):
