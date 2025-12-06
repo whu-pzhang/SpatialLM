@@ -11,3 +11,5 @@ NORMALIZATION_PRESET = {
     "scale": (0.0, 20.0),
     "angle": (-6.2832, 6.2832),
 }
+
+IGNORE_INDEX = -100

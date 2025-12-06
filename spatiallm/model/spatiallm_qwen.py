@@ -25,8 +25,8 @@ except ImportError:
     pass  # Ignore the import error if torchsparse is not installed for SpatialLM1.1
 
 from spatiallm.model import PointBackboneType, ProjectorType
+from spatiallm.constants import IGNORE_INDEX
 
-IGNORE_INDEX = -100
 logger = logging.get_logger(__name__)
 
 
@@ -41,7 +41,9 @@ class SpatialLMQwenForCausalLM(Qwen2ForCausalLM):
         super().__init__(config)
         self.model = Qwen2Model(config)
         self.vocab_size = config.vocab_size
-        self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
+        self.lm_head = nn.Linear(config.hidden_size,
+                                 config.vocab_size,
+                                 bias=False)
 
         self.point_backbone_type = PointBackboneType(config.point_backbone)
         self.point_backbone = None
@@ -75,9 +77,11 @@ class SpatialLMQwenForCausalLM(Qwen2ForCausalLM):
             )
             embed_channels = point_config["enc_channels"][-1]
         else:
-            raise ValueError(f"Unknown point backbone type: {self.point_backbone_type}")
+            raise ValueError(
+                f"Unknown point backbone type: {self.point_backbone_type}")
 
-        self.projector_type = ProjectorType(getattr(config, "projector", "linear"))
+        self.projector_type = ProjectorType(
+            getattr(config, "projector", "linear"))
         if self.projector_type == ProjectorType.LINEAR:
             self.point_proj = nn.Linear(embed_channels, config.hidden_size)
         elif self.projector_type == ProjectorType.MLP:
@@ -115,8 +119,10 @@ class SpatialLMQwenForCausalLM(Qwen2ForCausalLM):
         coords = point_cloud[:, :3].int()  # grid_coord
         feats = point_cloud[:, 3:].float()  # xyz + color
         if self.point_backbone_type == PointBackboneType.SCENESCRIPT:
-            pc_sparse_tensor = torchsparse.SparseTensor(coords=coords, feats=feats)
-            pc_sparse_tensor = sparse_collate([pc_sparse_tensor])  # batch_size = 1
+            pc_sparse_tensor = torchsparse.SparseTensor(coords=coords,
+                                                        feats=feats)
+            pc_sparse_tensor = sparse_collate([pc_sparse_tensor
+                                               ])  # batch_size = 1
             pc_sparse_tensor = pc_sparse_tensor.to(device)
             encoded_features = self.point_backbone(pc_sparse_tensor)
             return self.point_proj(encoded_features["context"].to(dtype))
@@ -125,7 +131,8 @@ class SpatialLMQwenForCausalLM(Qwen2ForCausalLM):
                 "coord": feats[:, :3].to(device),
                 "grid_coord": coords.to(device),
                 "feat": feats.to(device),
-                "batch": torch.zeros(coords.shape[0], dtype=torch.long).to(device),
+                "batch": torch.zeros(coords.shape[0],
+                                     dtype=torch.long).to(device),
             }
             encoded_features = self.point_backbone(input_dict)
             # add the batch dimension
@@ -140,7 +147,8 @@ class SpatialLMQwenForCausalLM(Qwen2ForCausalLM):
 
             return self.point_proj(encoded_features.to(dtype))
         else:
-            raise ValueError(f"Unknown point backbone type: {self.point_backbone_type}")
+            raise ValueError(
+                f"Unknown point backbone type: {self.point_backbone_type}")
 
     def set_point_backbone_dtype(self, dtype: torch.dtype):
         for param in self.point_backbone.parameters():
@@ -164,7 +172,8 @@ class SpatialLMQwenForCausalLM(Qwen2ForCausalLM):
         input_ids: torch.LongTensor = None,
         attention_mask: Optional[torch.Tensor] = None,
         position_ids: Optional[torch.LongTensor] = None,
-        past_key_values: Optional[Union[Cache, List[torch.FloatTensor]]] = None,
+        past_key_values: Optional[Union[Cache,
+                                        List[torch.FloatTensor]]] = None,
         inputs_embeds: Optional[torch.FloatTensor] = None,
         labels: Optional[torch.LongTensor] = None,
         use_cache: Optional[bool] = None,
@@ -209,36 +218,27 @@ class SpatialLMQwenForCausalLM(Qwen2ForCausalLM):
         >>> generate_ids = model.generate(input_ids, point_clouds=point_clouds, max_length=4096)
         >>> tokenizer.batch_decode(generate_ids, skip_prompt=True, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
         ```"""
-        output_attentions = (
-            output_attentions
-            if output_attentions is not None
-            else self.config.output_attentions
-        )
-        output_hidden_states = (
-            output_hidden_states
-            if output_hidden_states is not None
-            else self.config.output_hidden_states
-        )
-        return_dict = (
-            return_dict if return_dict is not None else self.config.use_return_dict
-        )
+        output_attentions = (output_attentions if output_attentions is not None
+                             else self.config.output_attentions)
+        output_hidden_states = (output_hidden_states
+                                if output_hidden_states is not None else
+                                self.config.output_hidden_states)
+        return_dict = (return_dict if return_dict is not None else
+                       self.config.use_return_dict)
 
         # compute point cloud embeddings
         if inputs_embeds is None:
             inputs_embeds = self.model.embed_tokens(input_ids)
 
-        if (
-            self.point_backbone is not None
-            and (input_ids.shape[1] != 1 or self.training)
-            and point_clouds is not None
-        ):
+        if (self.point_backbone is not None
+                and (input_ids.shape[1] != 1 or self.training)
+                and point_clouds is not None):
             n_point_clouds = point_clouds.shape[0]
             point_features = []
             for i in range(n_point_clouds):  # * iterate over batch
                 point_cloud = point_clouds[i]
                 point_feature = self.forward_point_cloud(
-                    point_cloud, inputs_embeds.device, inputs_embeds.dtype
-                )
+                    point_cloud, inputs_embeds.device, inputs_embeds.dtype)
                 point_features.append(point_feature)
 
             # Insert point cloud features into the input ids
@@ -248,34 +248,28 @@ class SpatialLMQwenForCausalLM(Qwen2ForCausalLM):
             cur_point_idx = 0
             max_num_tokens = 0
             for cur_input_ids, cur_input_embeds, cur_attention_mask in zip(
-                input_ids, inputs_embeds, attention_mask
+                    input_ids, inputs_embeds, attention_mask
             ):  # * input_ids: B, L; input_embeds: B, L, C
-                cur_point_features = (
-                    point_features[cur_point_idx]
-                    .to(device=cur_input_embeds.device)
-                    .squeeze(0)
-                )
-                num_patches = cur_point_features.shape[0]  # * number of point tokens
-                num_point_start_tokens = (
-                    (cur_input_ids == self.config.point_start_token_id).sum().item()
-                )
-                num_point_end_tokens = (
-                    (cur_input_ids == self.config.point_end_token_id).sum().item()
-                )
+                cur_point_features = (point_features[cur_point_idx].to(
+                    device=cur_input_embeds.device).squeeze(0))
+                num_patches = cur_point_features.shape[
+                    0]  # * number of point tokens
+                num_point_start_tokens = ((cur_input_ids == self.config.
+                                           point_start_token_id).sum().item())
+                num_point_end_tokens = ((cur_input_ids == self.config.
+                                         point_end_token_id).sum().item())
                 # currently, we only support one point start and one point end token
                 assert num_point_start_tokens == num_point_end_tokens == 1, (
                     "The number of point start tokens and point end tokens should be 1, "
                     f"but got {num_point_start_tokens} and {num_point_end_tokens}."
                 )
                 point_start_token_pos = torch.where(
-                    cur_input_ids == self.config.point_start_token_id
-                )[0][0]
+                    cur_input_ids == self.config.point_start_token_id)[0][0]
                 point_end_token_pos = torch.where(
-                    cur_input_ids == self.config.point_end_token_id
-                )[0][0]
+                    cur_input_ids == self.config.point_end_token_id)[0][0]
                 cur_new_input_embeds = torch.cat(
                     (
-                        cur_input_embeds[: point_start_token_pos + 1],
+                        cur_input_embeds[:point_start_token_pos + 1],
                         cur_point_features,
                         cur_input_embeds[point_end_token_pos:],
                     ),
@@ -283,8 +277,9 @@ class SpatialLMQwenForCausalLM(Qwen2ForCausalLM):
                 )
                 cur_new_attention_mask = torch.cat(
                     (
-                        cur_attention_mask[: point_start_token_pos + 1],
-                        torch.ones(num_patches, device=cur_attention_mask.device),
+                        cur_attention_mask[:point_start_token_pos + 1],
+                        torch.ones(num_patches,
+                                   device=cur_attention_mask.device),
                         cur_attention_mask[point_end_token_pos:],
                     ),
                     dim=0,
@@ -294,16 +289,17 @@ class SpatialLMQwenForCausalLM(Qwen2ForCausalLM):
                 new_input_embeds.append(cur_new_input_embeds)
                 new_attention_mask.append(cur_new_attention_mask)
                 point_start_end_token_pos.append(
-                    (point_start_token_pos, num_patches, point_end_token_pos)
-                )
+                    (point_start_token_pos, num_patches, point_end_token_pos))
                 if cur_new_input_embeds.shape[0] > max_num_tokens:
                     max_num_tokens = cur_new_input_embeds.shape[0]
             # pad the new input embeds and attention mask to the max dimension
             for i in range(len(new_input_embeds)):
                 cur_input_embeds = new_input_embeds[i]
                 last_row = cur_input_embeds[-1]
-                padding = last_row.repeat(max_num_tokens - cur_input_embeds.shape[0], 1)
-                new_input_embeds[i] = torch.cat([cur_input_embeds, padding], dim=0)
+                padding = last_row.repeat(
+                    max_num_tokens - cur_input_embeds.shape[0], 1)
+                new_input_embeds[i] = torch.cat([cur_input_embeds, padding],
+                                                dim=0)
 
                 cur_attention_mask = new_attention_mask[i]
                 new_attention_mask[i] = F.pad(
@@ -350,9 +346,9 @@ class SpatialLMQwenForCausalLM(Qwen2ForCausalLM):
                 ) = point_start_end_token_pos[i]
                 cur_new_labels = torch.cat(
                     (
-                        cur_labels[: cur_point_start_token_pos + 1],
+                        cur_labels[:cur_point_start_token_pos + 1],
                         torch.full(
-                            (num_patches,),
+                            (num_patches, ),
                             IGNORE_INDEX,
                             device=cur_labels.device,
                         ),
@@ -369,8 +365,7 @@ class SpatialLMQwenForCausalLM(Qwen2ForCausalLM):
             labels = torch.stack(new_labels, dim=0)
 
             assert labels.shape[1] == logits.shape[1], (
-                "The length of labels and logits should be the same"
-            )
+                "The length of labels and logits should be the same")
 
             loss = self.loss_function(
                 logits=logits,
@@ -380,8 +375,8 @@ class SpatialLMQwenForCausalLM(Qwen2ForCausalLM):
             )
 
         if not return_dict:
-            output = (logits,) + outputs[1:]
-            return (loss,) + output if loss is not None else output
+            output = (logits, ) + outputs[1:]
+            return (loss, ) + output if loss is not None else output
 
         return CausalLMOutputWithPast(
             loss=loss,
@@ -408,14 +403,12 @@ class SpatialLMQwenForCausalLM(Qwen2ForCausalLM):
         else:
             model_inputs = {"input_ids": input_ids}
 
-        model_inputs.update(
-            {
-                "past_key_values": past_key_values,
-                "use_cache": kwargs.get("use_cache"),
-                "attention_mask": attention_mask,
-                "point_clouds": kwargs.get("point_clouds", None),
-            }
-        )
+        model_inputs.update({
+            "past_key_values": past_key_values,
+            "use_cache": kwargs.get("use_cache"),
+            "attention_mask": attention_mask,
+            "point_clouds": kwargs.get("point_clouds", None),
+        })
         return model_inputs
 
 

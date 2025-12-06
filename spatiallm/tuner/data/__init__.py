@@ -12,10 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 from .loader import get_dataset
 from .template import (
-    IGNORE_INDEX,
     TEMPLATES,
     Role,
     Template,
@@ -29,6 +27,7 @@ from spatiallm.constants import (
     POINT_S_TOKEN,
     POINT_E_TOKEN,
     POINT_CLOUD_PLACEHOLDER,
+    IGNORE_INDEX,
 )
 
 __all__ = [

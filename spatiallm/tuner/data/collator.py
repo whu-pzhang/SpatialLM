@@ -22,7 +22,7 @@ import torch
 import torch.nn.functional as F
 from transformers import DataCollatorForSeq2Seq
 
-from .template import IGNORE_INDEX
+from spatiallm.constants import IGNORE_INDEX
 
 if TYPE_CHECKING:
     from transformers import PreTrainedTokenizer

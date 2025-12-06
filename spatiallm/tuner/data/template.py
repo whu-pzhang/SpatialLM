@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Optional
 from ..framework import logging
 from .formatter import EmptyFormatter, StringFormatter
 from .mm_plugin import get_mm_plugin
+from spatiallm.constants import IGNORE_INDEX
 
 if TYPE_CHECKING:
     from transformers import PreTrainedTokenizer
@@ -13,11 +14,7 @@ if TYPE_CHECKING:
     from .formatter import SLOTS, Formatter
     from .mm_plugin import SpatialLMPlugin
 
-
 logger = logging.get_logger(__name__)
-
-
-IGNORE_INDEX = -100
 
 
 @unique
@@ -62,22 +59,22 @@ class Template:
     ) -> list[tuple[list[int], list[int]]]:
         r"""Return multiple pairs of token ids representing prompts and responses respectively."""
         encoded_messages = self._encode(tokenizer, messages, system)
-        return [
-            (encoded_messages[i], encoded_messages[i + 1])
-            for i in range(0, len(encoded_messages), 2)
-        ]
+        return [(encoded_messages[i], encoded_messages[i + 1])
+                for i in range(0, len(encoded_messages), 2)]
 
-    def _convert_elements_to_ids(
-        self, tokenizer: "PreTrainedTokenizer", elements: "SLOTS"
-    ) -> list[int]:
+    def _convert_elements_to_ids(self, tokenizer: "PreTrainedTokenizer",
+                                 elements: "SLOTS") -> list[int]:
         r"""Convert elements to token ids."""
         token_ids = []
         for elem in elements:
             if isinstance(elem, str):
                 if len(elem) != 0:
-                    token_ids += tokenizer.encode(elem, add_special_tokens=False)
+                    token_ids += tokenizer.encode(elem,
+                                                  add_special_tokens=False)
             elif isinstance(elem, dict):
-                token_ids += [tokenizer.convert_tokens_to_ids(elem.get("token"))]
+                token_ids += [
+                    tokenizer.convert_tokens_to_ids(elem.get("token"))
+                ]
             elif isinstance(elem, set):
                 if "bos_token" in elem and tokenizer.bos_token_id is not None:
                     token_ids += [tokenizer.bos_token_id]
@@ -112,28 +109,30 @@ class Template:
                     elements += self.format_system.apply(content=system)
 
             if message["role"] == Role.USER:
-                elements += self.format_user.apply(
-                    content=message["content"], idx=str(i // 2)
-                )
+                elements += self.format_user.apply(content=message["content"],
+                                                   idx=str(i // 2))
             elif message["role"] == Role.ASSISTANT:
-                elements += self.format_assistant.apply(content=message["content"])
+                elements += self.format_assistant.apply(
+                    content=message["content"])
             else:
-                raise NotImplementedError("Unexpected role: {}".format(message["role"]))
+                raise NotImplementedError("Unexpected role: {}".format(
+                    message["role"]))
 
-            encoded_messages.append(self._convert_elements_to_ids(tokenizer, elements))
+            encoded_messages.append(
+                self._convert_elements_to_ids(tokenizer, elements))
 
         return encoded_messages
 
     @staticmethod
-    def _add_or_replace_eos_token(
-        tokenizer: "PreTrainedTokenizer", eos_token: str
-    ) -> None:
+    def _add_or_replace_eos_token(tokenizer: "PreTrainedTokenizer",
+                                  eos_token: str) -> None:
         r"""Add or replace eos token to the tokenizer."""
         if tokenizer.eos_token == eos_token:
             return
 
         is_added = tokenizer.eos_token_id is None
-        num_added_tokens = tokenizer.add_special_tokens({"eos_token": eos_token})
+        num_added_tokens = tokenizer.add_special_tokens(
+            {"eos_token": eos_token})
 
         if is_added:
             logger.info_rank0(f"Add eos token: {tokenizer.eos_token}.")
@@ -150,13 +149,15 @@ class Template:
         stop_words = self.stop_words
         if self.replace_eos:
             if not stop_words:
-                raise ValueError("Stop words are required to replace the EOS token.")
+                raise ValueError(
+                    "Stop words are required to replace the EOS token.")
 
             self._add_or_replace_eos_token(tokenizer, eos_token=stop_words[0])
             stop_words = stop_words[1:]
 
         if tokenizer.eos_token_id is None:
-            self._add_or_replace_eos_token(tokenizer, eos_token="<|endoftext|>")
+            self._add_or_replace_eos_token(tokenizer,
+                                           eos_token="<|endoftext|>")
 
         if tokenizer.pad_token_id is None:
             tokenizer.pad_token = tokenizer.eos_token
@@ -167,7 +168,8 @@ class Template:
                 dict(additional_special_tokens=stop_words),
                 replace_additional_special_tokens=False,
             )
-            logger.info_rank0("Add {} to stop words.".format(",".join(stop_words)))
+            logger.info_rank0("Add {} to stop words.".format(
+                ",".join(stop_words)))
             if num_added_tokens > 0:
                 logger.warning_rank0(
                     "New tokens have been added, make sure `resize_vocab` is True."
@@ -179,26 +181,25 @@ class Template:
         return content.replace("'", r"\'")
 
     @staticmethod
-    def _convert_slots_to_jinja(
-        slots: "SLOTS", tokenizer: "PreTrainedTokenizer", placeholder: str = "content"
-    ) -> str:
+    def _convert_slots_to_jinja(slots: "SLOTS",
+                                tokenizer: "PreTrainedTokenizer",
+                                placeholder: str = "content") -> str:
         r"""Convert slots to jinja template."""
         slot_items = []
         for slot in slots:
             if isinstance(slot, str):
                 slot_pieces = slot.split("{{content}}")
                 if slot_pieces[0]:
-                    slot_items.append(
-                        "'" + Template._jinja_escape(slot_pieces[0]) + "'"
-                    )
+                    slot_items.append("'" +
+                                      Template._jinja_escape(slot_pieces[0]) +
+                                      "'")
                 if len(slot_pieces) > 1:
                     slot_items.append(placeholder)
                     if slot_pieces[1]:
                         slot_items.append(
-                            "'" + Template._jinja_escape(slot_pieces[1]) + "'"
-                        )
+                            "'" + Template._jinja_escape(slot_pieces[1]) + "'")
             elif isinstance(
-                slot, set
+                    slot, set
             ):  # do not use {{ eos_token }} since it may be replaced
                 if "bos_token" in slot and tokenizer.bos_token_id is not None:
                     slot_items.append("'" + tokenizer.bos_token + "'")
@@ -211,24 +212,23 @@ class Template:
 
     def _get_jinja_template(self, tokenizer: "PreTrainedTokenizer") -> str:
         r"""Return the jinja template."""
-        prefix = self._convert_slots_to_jinja(self.format_prefix.apply(), tokenizer)
-        system = self._convert_slots_to_jinja(
-            self.format_system.apply(), tokenizer, placeholder="system_message"
-        )
-        user = self._convert_slots_to_jinja(self.format_user.apply(), tokenizer)
-        assistant = self._convert_slots_to_jinja(
-            self.format_assistant.apply(), tokenizer
-        )
+        prefix = self._convert_slots_to_jinja(self.format_prefix.apply(),
+                                              tokenizer)
+        system = self._convert_slots_to_jinja(self.format_system.apply(),
+                                              tokenizer,
+                                              placeholder="system_message")
+        user = self._convert_slots_to_jinja(self.format_user.apply(),
+                                            tokenizer)
+        assistant = self._convert_slots_to_jinja(self.format_assistant.apply(),
+                                                 tokenizer)
         jinja_template = ""
         if prefix:
             jinja_template += "{{ " + prefix + " }}"
 
         if self.default_system:
-            jinja_template += (
-                "{% set system_message = '"
-                + self._jinja_escape(self.default_system)
-                + "' %}"
-            )
+            jinja_template += ("{% set system_message = '" +
+                               self._jinja_escape(self.default_system) +
+                               "' %}")
 
         jinja_template += (
             "{% if messages[0]['role'] == 'system' %}{% set loop_messages = messages[1:] %}"
@@ -241,8 +241,7 @@ class Template:
             "{% elif message['role'] == 'assistant' %}"
             "{{ " + assistant + " }}"
             "{% endif %}"
-            "{% endfor %}"
-        )
+            "{% endfor %}")
         return jinja_template
 
     def fix_jinja_template(self, tokenizer: "PreTrainedTokenizer") -> None:
@@ -251,15 +250,15 @@ class Template:
             try:
                 tokenizer.chat_template = self._get_jinja_template(tokenizer)
             except ValueError as e:
-                logger.info_rank0(f"Cannot add this chat template to tokenizer: {e}.")
+                logger.info_rank0(
+                    f"Cannot add this chat template to tokenizer: {e}.")
 
 
 TEMPLATES: dict[str, "Template"] = {}
 
 
-def get_template_and_fix_tokenizer(
-    tokenizer: "PreTrainedTokenizer", data_args: "DataArguments"
-) -> "Template":
+def get_template_and_fix_tokenizer(tokenizer: "PreTrainedTokenizer",
+                                   data_args: "DataArguments") -> "Template":
     r"""Get chat template and fixes the tokenizer."""
     if data_args.template is None:
         raise ValueError("`template` is required.")
@@ -270,7 +269,8 @@ def get_template_and_fix_tokenizer(
     template = TEMPLATES[data_args.template]
 
     if data_args.default_system is not None:
-        logger.info_rank0(f"Using default system message: {data_args.default_system}.")
+        logger.info_rank0(
+            f"Using default system message: {data_args.default_system}.")
         template.default_system = data_args.default_system
 
     template.fix_special_tokens(tokenizer)
@@ -321,19 +321,12 @@ def register_spatiallm_templates(
 ):
     register_template(
         name="spatiallm_llama",
-        format_user=StringFormatter(
-            slots=[
-                (
-                    "<|start_header_id|>user<|end_header_id|>\n\n{{content}}<|eot_id|>"
-                    "<|start_header_id|>assistant<|end_header_id|>\n\n"
-                )
-            ]
-        ),
-        format_system=StringFormatter(
-            slots=[
-                "<|start_header_id|>system<|end_header_id|>\n\n{{content}}<|eot_id|>"
-            ]
-        ),
+        format_user=StringFormatter(slots=[(
+            "<|start_header_id|>user<|end_header_id|>\n\n{{content}}<|eot_id|>"
+            "<|start_header_id|>assistant<|end_header_id|>\n\n")]),
+        format_system=StringFormatter(slots=[
+            "<|start_header_id|>system<|end_header_id|>\n\n{{content}}<|eot_id|>"
+        ]),
         format_prefix=EmptyFormatter(slots=[{"bos_token"}]),
         stop_words=["<|eot_id|>", "<|eom_id|>"],
         mm_plugin=get_mm_plugin(
@@ -348,13 +341,12 @@ def register_spatiallm_templates(
 
     register_template(
         name="spatiallm_qwen",
-        format_user=StringFormatter(
-            slots=["<|im_start|>user\n{{content}}<|im_end|>\n<|im_start|>assistant\n"]
-        ),
+        format_user=StringFormatter(slots=[
+            "<|im_start|>user\n{{content}}<|im_end|>\n<|im_start|>assistant\n"
+        ]),
         format_assistant=StringFormatter(slots=["{{content}}<|im_end|>\n"]),
         format_system=StringFormatter(
-            slots=["<|im_start|>system\n{{content}}<|im_end|>\n"]
-        ),
+            slots=["<|im_start|>system\n{{content}}<|im_end|>\n"]),
         default_system="You are a helpful assistant.",
         stop_words=["<|im_end|>"],
         mm_plugin=get_mm_plugin(

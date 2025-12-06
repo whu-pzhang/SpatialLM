@@ -5,8 +5,8 @@ import torch.distributed as dist
 from transformers import Seq2SeqTrainer
 from typing_extensions import override
 
+from spatiallm.constants import IGNORE_INDEX
 from spatiallm.tuner.data import (
-    IGNORE_INDEX,
     SFTDataCollatorWith4DAttentionMask,
     get_dataset,
     get_template_and_fix_tokenizer,
