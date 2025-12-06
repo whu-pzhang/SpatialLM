@@ -1,9 +1,11 @@
 import numpy as np
 from scipy.spatial.transform import Rotation as R
-from spatiallm.layout.entity import Wall, Door, Window, Bbox, NORMALIZATION_PRESET
+from spatiallm.layout.entity import Wall, Door, Window, Bbox
+from spatiallm.constants import NORMALIZATION_PRESET
 
 
 class Layout:
+
     def __init__(self, s: str = None):
         self.walls = []
         self.doors = []
@@ -32,7 +34,7 @@ class Layout:
                 # extract params
                 start_pos = line.find("(")
                 end_pos = line.find(")")
-                params = line[start_pos + 1 : end_pos].split(",")
+                params = line[start_pos + 1:end_pos].split(",")
 
                 if entity_label == Wall.entity_label:
                     wall_args = [
@@ -121,7 +123,8 @@ class Layout:
             angle = np.arctan2(direction[1], direction[0])
             lookup[wall.id] = {"wall": wall, "angle": angle}
 
-            center = (corner_a + corner_b) * 0.5 + np.array([0, 0, 0.5 * wall.height])
+            center = (corner_a + corner_b) * 0.5 + np.array(
+                [0, 0, 0.5 * wall.height])
             scale = np.array([length, thickness, wall.height])
             rotation = R.from_rotvec([0, 0, angle]).as_matrix()
             box = {
@@ -145,8 +148,7 @@ class Layout:
             thickness = wall.thickness
 
             center = np.array(
-                [fixture.position_x, fixture.position_y, fixture.position_z]
-            )
+                [fixture.position_x, fixture.position_y, fixture.position_z])
             scale = np.array([fixture.width, thickness, fixture.height])
             rotation = R.from_rotvec([0, 0, angle]).as_matrix()
             class_prefix = 1000 if fixture.entity_label == Door.entity_label else 2000
@@ -161,7 +163,8 @@ class Layout:
             boxes.append(box)
 
         for bbox in self.bboxes:
-            center = np.array([bbox.position_x, bbox.position_y, bbox.position_z])
+            center = np.array(
+                [bbox.position_x, bbox.position_y, bbox.position_z])
             scale = np.array([bbox.scale_x, bbox.scale_y, bbox.scale_z])
             rotation = R.from_rotvec([0, 0, bbox.angle_z]).as_matrix()
             class_name = bbox.class_name
@@ -210,10 +213,17 @@ class Layout:
             entity_strings.append(entity.to_language_string())
         return "\n".join(entity_strings)
 
+    def to_token_string(self):
+        entity_strings = []
+        for entity in self.get_entities():
+            entity_strings.append(entity.to_token_string())
+        return "\n".join(entity_strings)
+
     def filter_empty_bboxes(self, points, num_points=100, margin=0.15):
         filtered_bboxes = []
         for bbox in self.bboxes:
-            box_center = np.array([bbox.position_x, bbox.position_y, bbox.position_z])
+            box_center = np.array(
+                [bbox.position_x, bbox.position_y, bbox.position_z])
             box_size = np.array([bbox.scale_x, bbox.scale_y, bbox.scale_z])
             rot_mat = R.from_rotvec(np.array([0, 0, bbox.angle_z])).as_matrix()
 
@@ -222,8 +232,7 @@ class Layout:
             box_min = -box_size / 2 - margin
             box_max = box_size / 2 + margin
             points_mask = np.all(rotated_points >= box_min, axis=1) & np.all(
-                rotated_points <= box_max, axis=1
-            )
+                rotated_points <= box_max, axis=1)
             if np.sum(points_mask) > num_points:
                 filtered_bboxes.append(bbox)
 
@@ -252,13 +261,12 @@ class Layout:
         bboxes = []
         # filter invalid bboxes
         for bbox in self.bboxes:
-            if filter_small_objects and (
-                bbox.scale_x < size_threshold
-                and bbox.scale_y < size_threshold
-                and bbox.scale_z < size_threshold
-            ):
+            if filter_small_objects and (bbox.scale_x < size_threshold
+                                         and bbox.scale_y < size_threshold
+                                         and bbox.scale_z < size_threshold):
                 continue
-            if filter_unknown and (not bbox.class_name or bbox.class_name == "unknown"):
+            if filter_unknown and (not bbox.class_name
+                                   or bbox.class_name == "unknown"):
                 continue
             bboxes.append(bbox)
 

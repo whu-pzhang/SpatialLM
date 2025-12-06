@@ -46,7 +46,7 @@ Note:
 
 ## 训练优化
 
-官方在 s3d 数据上微调训练时，`num_bins` 设置为 640，结合 `spatiallm/layout/entity.py` 中的 `NORMALIZATION_PRESET` 参数，
+官方在 s3d 数据上微调训练时，`num_bins` 设置为 640，结合 `spatiallm/constants.py` 中的 `NORMALIZATION_PRESET` 参数，
 可计算出其对点云的网格划分最小为 `32/640=0.05m`，该精度无法满足室内布局估计 2 到 5 cm的精度要求。
 
 以下实验均基于 `SpatialLM1.1-0.5B` 模型，采用 `s3d` 数据集进行训练，在 A100 80GB PCIE 显卡下进行：

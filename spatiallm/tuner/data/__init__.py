@@ -23,7 +23,7 @@ from .template import (
     register_spatiallm_templates,
 )
 from .collator import SFTDataCollatorWith4DAttentionMask
-from .mm_plugin import (
+from spatiallm.constants import (
     LAYOUT_S_PLACEHOLDER,
     LAYOUT_E_PLACEHOLDER,
     POINT_S_TOKEN,

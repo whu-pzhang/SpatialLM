@@ -1,6 +1,5 @@
 # Copyright (c) Manycore Tech Inc. and affiliates.
 # All rights reserved.
-
 """
 This code is derived from the SceneScript language sequence and entity parameters.
 
@@ -12,13 +11,7 @@ from dataclasses import dataclass
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 
-NORMALIZATION_PRESET = {
-    "world": (0.0, 32.0),
-    "height": (0.0, 25.6),
-    "width": (0.0, 25.6),
-    "scale": (0.0, 20.0),
-    "angle": (-6.2832, 6.2832),
-}
+from spatiallm.constants import NORMALIZATION_PRESET
 
 
 @dataclass
@@ -90,10 +83,10 @@ class Wall:
         height_min, height_max = NORMALIZATION_PRESET["height"]
         world_min, world_max = NORMALIZATION_PRESET["world"]
 
-        self.height = (self.height - height_min) / (height_max - height_min) * num_bins
-        self.thickness = (
-            (self.thickness - height_min) / (height_max - height_min) * num_bins
-        )
+        self.height = (self.height - height_min) / (height_max -
+                                                    height_min) * num_bins
+        self.thickness = ((self.thickness - height_min) /
+                          (height_max - height_min) * num_bins)
         self.ax = (self.ax - world_min) / (world_max - world_min) * num_bins
         self.ay = (self.ay - world_min) / (world_max - world_min) * num_bins
         self.az = (self.az - world_min) / (world_max - world_min) * num_bins
@@ -126,7 +119,8 @@ class Wall:
 
         # unnormalize
         self.height = self.height * (height_max - height_min) + height_min
-        self.thickness = self.thickness * (height_max - height_min) + height_min
+        self.thickness = self.thickness * (height_max -
+                                           height_min) + height_min
         self.ax = self.ax * (world_max - world_min) + world_min
         self.ay = self.ay * (world_max - world_min) + world_min
         self.az = self.az * (world_max - world_min) + world_min
@@ -139,6 +133,15 @@ class Wall:
         # wall_0=Wall(a_x,a_y,a_z,b_x,b_y,b_z,height,thickness)
         language_string = f"{self.entity_label}_{self.id}={capitalized_label}({self.ax},{self.ay},{self.az},{self.bx},{self.by},{self.bz},{self.height},{self.thickness})"
         return language_string
+
+    def to_token_string(self):
+        capitalized_label = self.entity_label.capitalize()
+        # wall_0=Wall(<ax>,<ay>,<az>,<bx>,<by>,<bz>,<height>,<thickness>)
+        return (f"{self.entity_label}_{self.id}={capitalized_label}("
+                f"<{int(self.ax)}>,<{int(self.ay)}>,<{int(self.az)}>,"
+                f"<{int(self.bx)}>,<{int(self.by)}>,<{int(self.bz)}>,"
+                f"<{int(self.height)}>,<{int(self.thickness)}>"
+                ")")
 
     def sort_key(self):
         # Lex-sort corners
@@ -211,17 +214,16 @@ class Door:
         height_min, height_max = NORMALIZATION_PRESET["height"]
         world_min, world_max = NORMALIZATION_PRESET["world"]
 
-        self.width = (self.width - width_min) / (width_max - width_min) * num_bins
-        self.height = (self.height - height_min) / (height_max - height_min) * num_bins
-        self.position_x = (
-            (self.position_x - world_min) / (world_max - world_min) * num_bins
-        )
-        self.position_y = (
-            (self.position_y - world_min) / (world_max - world_min) * num_bins
-        )
-        self.position_z = (
-            (self.position_z - world_min) / (world_max - world_min) * num_bins
-        )
+        self.width = (self.width - width_min) / (width_max -
+                                                 width_min) * num_bins
+        self.height = (self.height - height_min) / (height_max -
+                                                    height_min) * num_bins
+        self.position_x = ((self.position_x - world_min) /
+                           (world_max - world_min) * num_bins)
+        self.position_y = ((self.position_y - world_min) /
+                           (world_max - world_min) * num_bins)
+        self.position_z = ((self.position_z - world_min) /
+                           (world_max - world_min) * num_bins)
 
         self.width = np.clip(int(self.width), 0, num_bins - 1)
         self.height = np.clip(int(self.height), 0, num_bins - 1)
@@ -254,6 +256,17 @@ class Door:
         # door_0=Door(wall_id,position_x,position_y,position_z,width,height)
         language_string = f"{self.entity_label}_{self.id}={capitalized_label}(wall_{self.wall_id},{self.position_x},{self.position_y},{self.position_z},{self.width},{self.height})"
         return language_string
+
+    def to_token_string(self):
+        capitalized_label = self.entity_label.capitalize()
+        self.id = self.id % 1000
+        # door_0=Door(wall_id,<position_x>,<position_y>,<position_z>,<width>,<height>)
+        return (
+            f"{self.entity_label}_{self.id}={capitalized_label}("
+            f"wall_{self.wall_id},"
+            f"<{int(self.position_x)}>,<{int(self.position_y)}>,<{int(self.position_z)}>,"
+            f"<{int(self.width)}>,<{int(self.height)}>"
+            ")")
 
     def sort_key(self):
         return np.array([self.position_x, self.position_y])
@@ -293,7 +306,8 @@ class Bbox:
         bbox_rot_mat = R.from_rotvec([0, 0, self.angle_z]).as_matrix()
         new_bbox_rot_mat = augment_rot_mat @ bbox_rot_mat
         new_angle_z = R.from_matrix(new_bbox_rot_mat).as_euler("ZYX")[0]
-        new_angle_z = (new_angle_z + np.pi) % (2 * np.pi) - np.pi  # Range: [-pi, pi)
+        new_angle_z = (new_angle_z +
+                       np.pi) % (2 * np.pi) - np.pi  # Range: [-pi, pi)
 
         # Bbox is symmetric
         symmetry = np.pi
@@ -302,7 +316,8 @@ class Bbox:
         new_angle_z = (new_angle_z + np.pi) % symmetry - np.pi
         self.angle_z = new_angle_z
 
-        bbox_center = np.array([self.position_x, self.position_y, self.position_z])
+        bbox_center = np.array(
+            [self.position_x, self.position_y, self.position_z])
         bbox_center = augment_rot_mat @ bbox_center
         self.position_x = bbox_center[0]
         self.position_y = bbox_center[1]
@@ -326,19 +341,20 @@ class Bbox:
         scale_min, scale_max = NORMALIZATION_PRESET["scale"]
         angle_min, angle_max = NORMALIZATION_PRESET["angle"]
 
-        self.position_x = (
-            (self.position_x - world_min) / (world_max - world_min) * num_bins
-        )
-        self.position_y = (
-            (self.position_y - world_min) / (world_max - world_min) * num_bins
-        )
-        self.position_z = (
-            (self.position_z - world_min) / (world_max - world_min) * num_bins
-        )
-        self.angle_z = (self.angle_z - angle_min) / (angle_max - angle_min) * num_bins
-        self.scale_x = (self.scale_x - scale_min) / (scale_max - scale_min) * num_bins
-        self.scale_y = (self.scale_y - scale_min) / (scale_max - scale_min) * num_bins
-        self.scale_z = (self.scale_z - scale_min) / (scale_max - scale_min) * num_bins
+        self.position_x = ((self.position_x - world_min) /
+                           (world_max - world_min) * num_bins)
+        self.position_y = ((self.position_y - world_min) /
+                           (world_max - world_min) * num_bins)
+        self.position_z = ((self.position_z - world_min) /
+                           (world_max - world_min) * num_bins)
+        self.angle_z = (self.angle_z - angle_min) / (angle_max -
+                                                     angle_min) * num_bins
+        self.scale_x = (self.scale_x - scale_min) / (scale_max -
+                                                     scale_min) * num_bins
+        self.scale_y = (self.scale_y - scale_min) / (scale_max -
+                                                     scale_min) * num_bins
+        self.scale_z = (self.scale_z - scale_min) / (scale_max -
+                                                     scale_min) * num_bins
 
         self.position_x = np.clip(int(self.position_x), 0, num_bins - 1)
         self.position_y = np.clip(int(self.position_y), 0, num_bins - 1)
@@ -375,6 +391,18 @@ class Bbox:
         # bbox_0=Bbox(class_name,position_x,position_y,position_z,angle_z,scale_x,scale_y,scale_z)
         language_string = f"{self.entity_label}_{self.id}={capitalized_label}({self.class_name},{self.position_x},{self.position_y},{self.position_z},{self.angle_z},{self.scale_x},{self.scale_y},{self.scale_z})"
         return language_string
+
+    def to_token_string(self):
+        capitalized_label = self.entity_label.capitalize()
+        self.id = self.id % 1000
+        # bbox_0=Bbox(class_name,<position_x>,<position_y>,<position_z>,<angle_z>,<scale_x>,<scale_y>,<scale_z>)
+        return (
+            f"{self.entity_label}_{self.id}={capitalized_label}("
+            f"{self.class_name},"
+            f"<{int(self.position_x)}>,<{int(self.position_y)}>,<{int(self.position_z)}>,"
+            f"<{int(self.angle_z)}>,"
+            f"<{int(self.scale_x)}>,<{int(self.scale_y)}>,<{int(self.scale_z)}>"
+            ")")
 
     def sort_key(self):
         return np.array([self.position_x, self.position_y])
