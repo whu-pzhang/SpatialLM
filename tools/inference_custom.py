@@ -3,10 +3,12 @@ import os
 import random
 from pathlib import Path
 from threading import Thread
+import datetime
 
 import numpy as np
 import pandas as pd
 import torch
+import torch.distributed as dist
 from tqdm import tqdm
 from transformers import (
     AutoModelForCausalLM,
@@ -19,6 +21,28 @@ from spatiallm import Layout
 from spatiallm.constants import POINT_E_TOKEN, POINT_PAD_TOKEN, POINT_S_TOKEN
 from spatiallm.pcd import Compose, cleanup_pcd, get_points_and_colors, load_o3d_pcd
 from spatiallm.prompts import DETECT_TYPE_PROMPT
+
+
+def setup_distributed():
+    """Setup distributed inference environment"""
+    if "RANK" in os.environ and "WORLD_SIZE" in os.environ:
+        rank = int(os.environ["RANK"])
+        world_size = int(os.environ["WORLD_SIZE"])
+        local_rank = int(os.environ["LOCAL_RANK"])
+
+        dist.init_process_group(
+            backend="nccl",
+            init_method="env://",
+            world_size=world_size,
+            rank=rank,
+            timeout=datetime.timedelta(minutes=60),
+        )
+        torch.cuda.set_device(local_rank)
+        print(f"Initialized process {rank}/{world_size} (local_rank: {local_rank})")
+        return rank, world_size, local_rank
+    else:
+        print("Not using distributed mode")
+        return 0, 1, 0
 
 
 def set_deterministic_seed(seed):
@@ -90,6 +114,7 @@ def generate_layout(
     max_new_tokens=4096,
     detect_type="all",
     categories=[],
+    verbose=True,
 ):
     if seed >= 0:
         set_seed(seed)
@@ -101,7 +126,9 @@ def generate_layout(
     task_prompt = random.choice(DETECT_TYPE_PROMPT[detect_type])
     if detect_type != "arch" and categories:
         task_prompt = task_prompt.replace("boxes", ", ".join(categories))
-    print("Task prompt: ", task_prompt)
+
+    if verbose:
+        print("Task prompt: ", task_prompt)
 
     prompt = f"{POINT_S_TOKEN}{POINT_PAD_TOKEN}{POINT_E_TOKEN}{task_prompt} The reference code is as followed: {code_template}"
 
@@ -151,12 +178,15 @@ def generate_layout(
     t = Thread(target=model.generate, kwargs=generate_kwargs)
     t.start()
 
-    print("Generating layout...\n")
+    if verbose:
+        print("Generating layout...\n")
     generate_texts = []
     for text in streamer:
         generate_texts.append(text)
-        print(text, end="", flush=True)
-    print("\nDone!")
+        if verbose:
+            print(text, end="", flush=True)
+    if verbose:
+        print("\nDone!")
 
     layout_str = "".join(generate_texts)
     # The layout_str may contain special tokens <int>.
@@ -338,7 +368,7 @@ def parse_args():
     parser.add_argument(
         "--seed",
         type=int,
-        default=42,
+        default=-1,
         help="The seed to use during inference, negative value means no seed",
     )
     args = parser.parse_args()
@@ -351,6 +381,9 @@ if __name__ == "__main__":
     if args.file_list and not os.path.isfile(args.file_list):
         raise FileNotFoundError(f"File list not found: {args.file_list}")
 
+    # Initialize distributed environment
+    rank, world_size, local_rank = setup_distributed()
+
     # load the model
     tokenizer = AutoTokenizer.from_pretrained(args.model_path)
     model = AutoModelForCausalLM.from_pretrained(
@@ -358,7 +391,9 @@ if __name__ == "__main__":
         torch_dtype=getattr(torch, args.inference_dtype),
         low_cpu_mem_usage=True,
     )
-    model.to("cuda")
+    # Use local_rank for device placement
+    device = torch.device(f"cuda:{local_rank}")
+    model.to(device)
     model.set_point_backbone_dtype(torch.float32)
     model.eval()
 
@@ -381,7 +416,37 @@ if __name__ == "__main__":
         else:
             point_cloud_files = [str(p) for p in point_cloud_path.glob("*.ply")]
 
-    for point_cloud_file in tqdm(point_cloud_files):
+    # Sort files to ensure deterministic order across processes
+    point_cloud_files.sort()
+
+    # Split files among processes
+    if world_size > 1:
+        total_files = len(point_cloud_files)
+        files_per_rank = total_files // world_size
+        remainder = total_files % world_size
+
+        start_idx = rank * files_per_rank + min(rank, remainder)
+        end_idx = start_idx + files_per_rank + (1 if rank < remainder else 0)
+
+        point_cloud_files = point_cloud_files[start_idx:end_idx]
+        print(
+            f"Rank {rank}: Processing {len(point_cloud_files)} files (from index {start_idx} to {end_idx})"
+        )
+
+    # Only show progress bar on rank 0 or if not distributed
+    if rank == 0 or world_size == 1:
+        iterator = tqdm(point_cloud_files)
+    else:
+        iterator = point_cloud_files
+
+    # Calculate total files processed by this rank for progress logging
+    total_files_rank = len(point_cloud_files)
+
+    for i, point_cloud_file in enumerate(iterator):
+        # Log progress for non-zero ranks periodically
+        if world_size > 1 and rank != 0 and (i + 1) % 10 == 0:
+            print(f"Rank {rank}: Processed {i + 1}/{total_files_rank} files")
+
         # load the point cloud
         point_cloud = load_o3d_pcd(point_cloud_file)
         grid_size = Layout.get_grid_size(num_bins)
@@ -408,6 +473,9 @@ if __name__ == "__main__":
             seed=args.seed,
             detect_type=args.detect_type,
             categories=args.category,
+            verbose=(
+                world_size == 1
+            ),  # Only print verbose output in single process mode
         )
         layout.translate(min_extent)
         pred_language_string = layout.to_language_string()
