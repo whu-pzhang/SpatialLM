@@ -162,7 +162,11 @@ def generate_layout(
     print("\nDone!")
 
     layout_str = "".join(generate_texts)
+    # The layout_str may contain special tokens <int>.
+    # Layout.from_str() has been updated to parse these tokens into integers.
     layout = Layout(layout_str)
+
+    # After parsing, we need to undiscretize and unnormalize the integer coordinates back to physical world coordinates.
     layout.undiscretize_and_unnormalize(num_bins=model.config.point_config["num_bins"])
     return layout
 
