@@ -317,6 +317,7 @@ class GridSample(object):
         return_displacement=False,
         project_displacement=False,
         max_grid_coord=None,
+        max_points=None,
     ):
         self.grid_size = grid_size
         self.hash = self.fnv_hash_vec if hash_type == "fnv" else self.ravel_hash_vec
@@ -329,6 +330,7 @@ class GridSample(object):
         self.return_displacement = return_displacement
         self.project_displacement = project_displacement
         self.max_grid_coord = max_grid_coord
+        self.max_points = max_points
 
     def __call__(self, data_dict):
         assert "coord" in data_dict.keys()
@@ -350,6 +352,12 @@ class GridSample(object):
                 + np.random.randint(0, count.max(), count.size) % count
             )
             idx_unique = idx_sort[idx_select]
+
+            if self.max_points is not None and len(idx_unique) > self.max_points:
+                idx_unique = np.random.choice(
+                    idx_unique, self.max_points, replace=False
+                )
+
             if "sampled_index" in data_dict:
                 # for ScanNet data efficient, we need to make sure labeled point is sampled.
                 idx_unique = np.unique(
@@ -383,6 +391,10 @@ class GridSample(object):
                 np.cumsum(np.insert(count, 0, 0)[0:-1]) + (count.max() // 2) % count
             )
             idx_part = idx_sort[idx_select]
+
+            if self.max_points is not None and len(idx_part) > self.max_points:
+                idx_part = np.random.choice(idx_part, self.max_points, replace=False)
+
             data_part = dict(index=idx_part)
             if self.return_inverse:
                 data_dict["inverse"] = np.zeros_like(inverse)
