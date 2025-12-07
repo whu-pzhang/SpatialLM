@@ -25,7 +25,6 @@ if TYPE_CHECKING:
 
 
 class SpatialLMPlugin:
-
     def __init__(
         self,
         point_token: str = "<|point_pad|>",
@@ -33,7 +32,6 @@ class SpatialLMPlugin:
         do_augmentation: bool = False,
         random_rotation: bool = False,
         random_scale: bool = False,
-        max_points: Optional[int] = None,
     ):
         self.point_token = point_token
 
@@ -43,44 +41,41 @@ class SpatialLMPlugin:
         self.do_augmentation = do_augmentation
         self.random_rotation = random_rotation
         self.random_scale = random_scale
-        self.max_points = max_points
-        self.augmentation = Compose([
-            dict(type="RandomColorGrayScale", p=0.05),
-            dict(type="ChromaticAutoContrast", p=0.2, blend_factor=None),
-            dict(type="ChromaticTranslation", p=0.75, ratio=0.1),
-            dict(type="ChromaticJitter", p=0.8, std=0.05),
-            dict(type="HueSaturationTranslation",
-                 hue_max=0.2,
-                 saturation_max=0.2),
-            dict(type="RandomColorDrop", p=0.1, color_augment=0.0),
-            dict(type="RandomJitter", sigma=0.025, clip=0.05, ratio=0.8,
-                 p=0.9),
-            dict(type="RandomJitter", sigma=0.2, clip=0.2, ratio=0.05, p=0.85),
-            dict(type="RandomJitter", sigma=0.4, clip=1.0, ratio=0.001,
-                 p=0.75),
-            dict(type="RandomJitter", sigma=0.5, clip=4.0, ratio=0.0005,
-                 p=0.7),
-            dict(
-                type="ElasticDistortion",
-                distortion_params=[[0.2, 0.4], [0.8, 1.6]],
-                p=[0.85, 0.5],
-            ),
-        ])
+        self.augmentation = Compose(
+            [
+                dict(type="RandomColorGrayScale", p=0.05),
+                dict(type="ChromaticAutoContrast", p=0.2, blend_factor=None),
+                dict(type="ChromaticTranslation", p=0.75, ratio=0.1),
+                dict(type="ChromaticJitter", p=0.8, std=0.05),
+                dict(type="HueSaturationTranslation", hue_max=0.2, saturation_max=0.2),
+                dict(type="RandomColorDrop", p=0.1, color_augment=0.0),
+                dict(type="RandomJitter", sigma=0.025, clip=0.05, ratio=0.8, p=0.9),
+                dict(type="RandomJitter", sigma=0.2, clip=0.2, ratio=0.05, p=0.85),
+                dict(type="RandomJitter", sigma=0.4, clip=1.0, ratio=0.001, p=0.75),
+                dict(type="RandomJitter", sigma=0.5, clip=4.0, ratio=0.0005, p=0.7),
+                dict(
+                    type="ElasticDistortion",
+                    distortion_params=[[0.2, 0.4], [0.8, 1.6]],
+                    p=[0.85, 0.5],
+                ),
+            ]
+        )
 
-        self.transform = Compose([
-            dict(type="PositiveShift"),
-            dict(type="NormalizeColor"),
-            dict(
-                type="GridSample",
-                grid_size=self.grid_size,
-                hash_type="fnv",
-                mode="train",
-                keys=("coord", "color"),
-                return_grid_coord=True,
-                max_grid_coord=self.num_bins,
-                max_points=self.max_points,
-            ),
-        ])
+        self.transform = Compose(
+            [
+                dict(type="PositiveShift"),
+                dict(type="NormalizeColor"),
+                dict(
+                    type="GridSample",
+                    grid_size=self.grid_size,
+                    hash_type="fnv",
+                    mode="train",
+                    keys=("coord", "color"),
+                    return_grid_coord=True,
+                    max_grid_coord=self.num_bins,
+                ),
+            ]
+        )
 
     def _preprocess_point_cloud(self, point_cloud: dict) -> np.ndarray:
         r"""
@@ -93,9 +88,9 @@ class SpatialLMPlugin:
         assert len(coord) == len(xyz) == len(color)
         return np.concatenate([coord, xyz, color], axis=1)
 
-    def _regularize_point_clouds(self,
-                                 point_clouds: Sequence["PointCloudInput"],
-                                 **kwargs) -> torch.Tensor:
+    def _regularize_point_clouds(
+        self, point_clouds: Sequence["PointCloudInput"], **kwargs
+    ) -> torch.Tensor:
         points_list = []
         max_len = 0
         for point_cloud in point_clouds:
@@ -141,8 +136,7 @@ class SpatialLMPlugin:
             if self.random_rotation:
                 angle_z = np.random.random() * 2 * np.pi
             else:
-                angle_z = np.random.choice(
-                    np.array([0, 0.5, 1.0, 1.5]) * np.pi)
+                angle_z = np.random.choice(np.array([0, 0.5, 1.0, 1.5]) * np.pi)
 
             if self.random_scale:
                 scaling = np.random.uniform(0.75, 1.25)
@@ -155,24 +149,17 @@ class SpatialLMPlugin:
             scaled_points = (points - center_pt) * scaling
             transformed_points = (rotmat @ scaled_points.T).T + center_pt
             # store transformation parameters for sync the augmentation to the layout
-            transformations.append({
-                "angle_z":
-                angle_z,
-                "center_pt":
-                center_pt,
-                "scaling":
-                scaling,
-                "min_bound":
-                np.min(transformed_points, axis=0),
-                "transformed_points":
-                transformed_points,
-            })
+            transformations.append(
+                {
+                    "angle_z": angle_z,
+                    "center_pt": center_pt,
+                    "scaling": scaling,
+                    "min_bound": np.min(transformed_points, axis=0),
+                    "transformed_points": transformed_points,
+                }
+            )
 
-            point_cloud = {
-                "name": "pcd",
-                "coord": transformed_points,
-                "color": colors
-            }
+            point_cloud = {"name": "pcd", "coord": transformed_points, "color": colors}
             point_clouds_data.append(point_cloud)
 
         # Here we assume each conversation has exactly one point cloud
@@ -180,14 +167,16 @@ class SpatialLMPlugin:
         processed_messages = []
         for mi, messages in enumerate(batched_messages):
             processed_messages.append(
-                self.process_messages(messages, [transformations[mi]]))
+                self.process_messages(messages, [transformations[mi]])
+            )
 
         if len(processed_messages) != 0:
             input_dict["messages"] = processed_messages
         if len(point_clouds_data) != 0:
             # convert point clouds to batched tensors with shape (batch_size, max_len, 9)
             input_dict["point_clouds"] = self._regularize_point_clouds(
-                point_clouds_data)
+                point_clouds_data
+            )
         return input_dict
 
     def _validate_input(
@@ -234,9 +223,9 @@ class SpatialLMPlugin:
                 transformed_points = transformation["transformed_points"]
                 layout_start_pos = content.index(LAYOUT_S_PLACEHOLDER)
                 layout_end_pos = content.index(LAYOUT_E_PLACEHOLDER)
-                layout_content = content[layout_start_pos +
-                                         len(LAYOUT_S_PLACEHOLDER
-                                             ):layout_end_pos]
+                layout_content = content[
+                    layout_start_pos + len(LAYOUT_S_PLACEHOLDER) : layout_end_pos
+                ]
                 # parse layout_content
                 layout = Layout(layout_content)
                 # transformation augmentation
@@ -248,6 +237,7 @@ class SpatialLMPlugin:
                 layout.reorder_entities()
                 layout.translate(-min_bound)
                 layout.normalize_and_discretize(self.num_bins)
+                # use special tokens format <int> to represent the layout
                 new_layout_content = layout.to_token_string()
                 content = content.replace(
                     f"{LAYOUT_S_PLACEHOLDER}{layout_content}{LAYOUT_E_PLACEHOLDER}",
