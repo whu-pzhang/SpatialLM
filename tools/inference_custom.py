@@ -1,5 +1,6 @@
 import argparse
 import os
+import random
 from pathlib import Path
 from threading import Thread
 
@@ -15,13 +16,9 @@ from transformers import (
 )
 
 from spatiallm import Layout
+from spatiallm.constants import POINT_E_TOKEN, POINT_PAD_TOKEN, POINT_S_TOKEN
 from spatiallm.pcd import Compose, cleanup_pcd, get_points_and_colors, load_o3d_pcd
-
-DETECT_TYPE_PROMPT = {
-    "all": "Detect walls, doors, windows, boxes.",
-    "arch": "Detect walls, doors, windows.",
-    "object": "Detect boxes.",
-}
+from spatiallm.prompts import DETECT_TYPE_PROMPT
 
 
 def set_deterministic_seed(seed):
@@ -101,12 +98,12 @@ def generate_layout(
     with open(code_template_file, "r") as f:
         code_template = f.read()
 
-    task_prompt = DETECT_TYPE_PROMPT[detect_type]
+    task_prompt = random.choice(DETECT_TYPE_PROMPT[detect_type])
     if detect_type != "arch" and categories:
         task_prompt = task_prompt.replace("boxes", ", ".join(categories))
     print("Task prompt: ", task_prompt)
 
-    prompt = f"<|point_start|><|point_pad|><|point_end|>{task_prompt} The reference code is as followed: {code_template}"
+    prompt = f"{POINT_S_TOKEN}{POINT_PAD_TOKEN}{POINT_E_TOKEN}{task_prompt} The reference code is as followed: {code_template}"
 
     # prepare the conversation data
     if model.config.model_type == "spatiallm_qwen":
