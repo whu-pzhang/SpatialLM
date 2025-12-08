@@ -11,7 +11,13 @@ from spatiallm.layout.layout import Layout
 random.seed(42)
 
 prompt = (
-    "<point_cloud>Detect walls, doors, windows. The reference code is as followed: @dataclass\n\
+    "<point_cloud>Detect walls, doors, windows. The reference code is as followed: \n\
+@dataclass\n\
+class Room:\n\
+    id: int\n\
+    wall_ids: List[str]\n\
+    type: str\n\
+@dataclass\n\
 class Wall:\n\
     ax: int\n\
     ay: int\n\
@@ -50,7 +56,13 @@ class Bbox:\n\
 )
 
 
-def generate_split_csv(data_root, split_file=None, train_ratio=0.8):
+def generate_split_csv(
+    data_root,
+    split_file=None,
+    train_ratio=0.8,
+    pcd_dir_name="pcd",
+    layout_dir_name="layout",
+):
     """
     Generate CSV files containing the correspondence between point cloud and layout files.
 
@@ -62,10 +74,12 @@ def generate_split_csv(data_root, split_file=None, train_ratio=0.8):
         data_root (str or Path): Root directory of the data
         split_file (str): Name of the generated split file
         train_ratio (float): Ratio of training data when splitting into train/val
+        pcd_dir_name (str): Name of the point cloud directory
+        layout_dir_name (str): Name of the layout directory
     """
     data_root = Path(data_root)
-    pcd_dir = data_root / "pcd"
-    layout_dir = data_root / "layout"
+    pcd_dir = data_root / pcd_dir_name
+    layout_dir = data_root / layout_dir_name
 
     # 检查目录是否存在
     if not pcd_dir.exists():
@@ -126,24 +140,29 @@ def generate_split_csv(data_root, split_file=None, train_ratio=0.8):
 
 def generate_train_csv(
     data_root,
-    subfolders=["20251110", "20251127"],
+    subfolders=None,
     val_csv_file="val.csv",
+    pcd_dir_name="pcd",
+    layout_dir_name="layout",
 ):
     """
     Generate training CSV file by excluding validation samples from all available data.
 
     Args:
         data_root (str or Path): Root directory of the data
+        subfolders (list): List of subfolders to process. If None, search in data_root directly.
         val_csv_file (str): Name of the validation CSV file to exclude from training data
+        pcd_dir_name (str): Name of the point cloud directory
+        layout_dir_name (str): Name of the layout directory
     """
     data_root = Path(data_root)
 
     pcd_list = []
     layout_list = []
 
-    for subfolder in subfolders:
-        pcd_dir = data_root.joinpath(subfolder, "pcd")
-        layout_dir = data_root.joinpath(subfolder, "layout")
+    if subfolders is None:
+        pcd_dir = data_root / pcd_dir_name
+        layout_dir = data_root / layout_dir_name
 
         # 检查目录是否存在
         if not pcd_dir.exists():
@@ -153,6 +172,19 @@ def generate_train_csv(
 
         pcd_list.extend(sorted([f for f in pcd_dir.glob("*.ply")]))
         layout_list.extend(sorted([f for f in layout_dir.glob("*.txt")]))
+    else:
+        for subfolder in subfolders:
+            pcd_dir = data_root.joinpath(subfolder, pcd_dir_name)
+            layout_dir = data_root.joinpath(subfolder, layout_dir_name)
+
+            # 检查目录是否存在
+            if not pcd_dir.exists():
+                raise FileNotFoundError(f"PCD directory not found: {pcd_dir}")
+            if not layout_dir.exists():
+                raise FileNotFoundError(f"Layout directory not found: {layout_dir}")
+
+            pcd_list.extend(sorted([f for f in pcd_dir.glob("*.ply")]))
+            layout_list.extend(sorted([f for f in layout_dir.glob("*.txt")]))
 
     pcd_list = sorted(pcd_list)
     layout_list = sorted(layout_list)
@@ -186,9 +218,7 @@ def generate_train_csv(
         f.write("id,pcd,layout\n")
         for pcd_file in train_pcds:
             # layout_file = layout_dir / f"{pcd_file.stem}.txt"
-            layout_file = Path(str(pcd_file).replace("pcd", "layout")).with_suffix(
-                ".txt"
-            )
+            layout_file = pcd_file.parents[1] / layout_dir_name / f"{pcd_file.stem}.txt"
             f.write(
                 f"{pcd_file.stem},{pcd_file.relative_to(data_root)},{layout_file.relative_to(data_root)}\n"
             )
@@ -218,7 +248,6 @@ def generate_train_json(data_root, split_file="train.csv", dataset_name="HC3D"):
     for _, row in tqdm(df.iterrows(), total=len(df)):
         ply_path = row["pcd"]
         layout_path = data_root / row["layout"]
-
         # 检查文件是否存在
         if not layout_path.exists():
             print(f"Warning: Layout file not found: {layout_path}")
@@ -339,6 +368,27 @@ def parse_args():
     )
 
     parser.add_argument(
+        "--pcd_dir",
+        type=str,
+        default="pcd",
+        help="Name of the point cloud directory (default: pcd)",
+    )
+
+    parser.add_argument(
+        "--layout_dir",
+        type=str,
+        default="layout",
+        help="Name of the layout directory (default: layout)",
+    )
+
+    parser.add_argument(
+        "--subfolders",
+        nargs="+",
+        default=None,
+        help="List of subfolders to process (default: None, search in data_root directly)",
+    )
+
+    parser.add_argument(
         "--skip_json",
         action="store_true",
         help="Skip JSON generation, only create CSV splits",
@@ -368,6 +418,9 @@ def main():
     data_root = Path(args.data_root)
     dataset_name = args.dataset_name
     train_ratio = args.train_ratio
+    pcd_dir_name = args.pcd_dir
+    layout_dir_name = args.layout_dir
+    subfolders = args.subfolders
     skip_json = args.skip_json
     skip_meta = args.skip_meta
 
@@ -380,10 +433,21 @@ def main():
         if val_csv_path.exists():
             print(f"Found existing validation file: {val_csv_path}")
             print("Generating training CSV based on existing validation split...")
-            generate_train_csv(data_root, val_csv_file="val.csv")
+            generate_train_csv(
+                data_root,
+                subfolders=subfolders,
+                val_csv_file="val.csv",
+                pcd_dir_name=pcd_dir_name,
+                layout_dir_name=layout_dir_name,
+            )
         else:
             print("No validation file found. Creating train/validation split...")
-            generate_split_csv(data_root, train_ratio=train_ratio)
+            generate_split_csv(
+                data_root,
+                train_ratio=train_ratio,
+                pcd_dir_name=pcd_dir_name,
+                layout_dir_name=layout_dir_name,
+            )
 
         if not skip_json:
             # Step 2: Generate training JSON dataset

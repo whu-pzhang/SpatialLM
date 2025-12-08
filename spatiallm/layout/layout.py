@@ -131,9 +131,7 @@ class Layout:
                     # params[0] is wall_ids list, params[1] is type
                     # Room definition: id, wall_ids, type
                     # The entity_id from "room_0" is 0
-                    entity = Room(
-                        id=f"room_{entity_id}", wall_ids=params[0], type=params[1]
-                    )
+                    entity = Room(id=entity_id, wall_ids=params[0], type=params[1])
                     self.rooms.append(entity)
                 elif entity_label == Bbox.entity_label:
                     class_name = params[0]
@@ -226,7 +224,7 @@ class Layout:
         return boxes
 
     def get_entities(self):
-        return self.walls + self.doors + self.windows + self.bboxes
+        return self.rooms + self.walls + self.doors + self.windows + self.bboxes
 
     def normalize_and_discretize(self, num_bins):
         for entity in self.get_entities():
