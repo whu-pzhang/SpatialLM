@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.spatial.transform import Rotation as R
-from spatiallm.layout.entity import Wall, Door, Window, Bbox
+from spatiallm.layout.entity import Wall, Door, Window, Bbox, Room
 from spatiallm.constants import NORMALIZATION_PRESET
 
 
@@ -10,6 +10,7 @@ class Layout:
         self.doors = []
         self.windows = []
         self.bboxes = []
+        self.rooms = []
 
         if s:
             self.from_str(s)
@@ -46,7 +47,32 @@ class Layout:
                         else:
                             params.append(p)
                 else:
-                    params = params_str.split(",")
+                    # Special handling for room wall_ids list which contains commas
+                    if entity_label == Room.entity_label:
+                        # Find the list part
+                        list_start = params_str.find("[")
+                        list_end = params_str.find("]")
+                        if list_start != -1 and list_end != -1:
+                            wall_ids_str = params_str[list_start + 1 : list_end]
+                            # Clean up quotes
+                            wall_ids = [
+                                w.strip().strip("'").strip('"')
+                                for w in wall_ids_str.split(",")
+                            ]
+                            # Get the type which follows the list
+                            remaining = params_str[list_end + 1 :]
+                            parts = [
+                                p.strip().strip("'").strip('"')
+                                for p in remaining.split(",")
+                                if p.strip()
+                            ]
+                            room_type = parts[0] if parts else "Room"
+                            params = [wall_ids, room_type]
+                        else:
+                            # Fallback if parsing fails or different format
+                            params = params_str.split(",")
+                    else:
+                        params = params_str.split(",")
 
                 if entity_label == Wall.entity_label:
                     wall_args = [
@@ -101,6 +127,14 @@ class Layout:
                         **window_params,
                     )
                     self.windows.append(entity)
+                elif entity_label == Room.entity_label:
+                    # params[0] is wall_ids list, params[1] is type
+                    # Room definition: id, wall_ids, type
+                    # The entity_id from "room_0" is 0
+                    entity = Room(
+                        id=f"room_{entity_id}", wall_ids=params[0], type=params[1]
+                    )
+                    self.rooms.append(entity)
                 elif entity_label == Bbox.entity_label:
                     class_name = params[0]
                     bbox_args = [
