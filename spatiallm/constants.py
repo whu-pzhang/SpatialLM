@@ -1,5 +1,6 @@
 LAYOUT_S_PLACEHOLDER = "<|layout_s|>"
 LAYOUT_E_PLACEHOLDER = "<|layout_e|>"
+LAYOUT_PLACEHOLDER = "<|layout|>"
 POINT_S_TOKEN = "<|point_start|>"
 POINT_E_TOKEN = "<|point_end|>"
 POINT_PAD_TOKEN = "<|point_pad|>"

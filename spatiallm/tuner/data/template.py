@@ -318,6 +318,7 @@ def register_spatiallm_templates(
     do_augmentation: bool = False,
     random_rotation: bool = False,
     random_scale: bool = False,
+    replace_prompt_with_type: Optional[str] = None,
 ):
     register_template(
         name="spatiallm_llama",
@@ -335,6 +336,7 @@ def register_spatiallm_templates(
             do_augmentation=do_augmentation,
             random_rotation=random_rotation,
             random_scale=random_scale,
+            replace_prompt_with_type=replace_prompt_with_type,
         ),
         cutoff_len=cutoff_len,
     )

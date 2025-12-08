@@ -112,6 +112,7 @@ def run_sft(
         do_augmentation=data_args.do_augmentation,
         random_rotation=data_args.random_rotation,
         random_scale=data_args.random_scale,
+        replace_prompt_with_type=data_args.replace_prompt_with_type,
     )
 
     template = get_template_and_fix_tokenizer(tokenizer, data_args)

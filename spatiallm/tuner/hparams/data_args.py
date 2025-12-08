@@ -131,6 +131,12 @@ class DataArguments:
         default=False,
         metadata={"help": "Whether or not to do random scaling."},
     )
+    replace_prompt_with_type: Optional[str] = field(
+        default=None,
+        metadata={
+            "help": "If set, replace the prompt with a random prompt of this type."
+        },
+    )
 
     def __post_init__(self):
         def split_arg(arg):

@@ -3,14 +3,17 @@ from typing import TYPE_CHECKING, Dict, List, Union, Sequence, Optional, Tuple
 
 import torch
 import numpy as np
+import random
 from scipy.spatial.transform import Rotation as R
 
 from spatiallm.layout.layout import Layout
 from spatiallm.pcd import load_o3d_pcd, get_points_and_colors
 from spatiallm.pcd.transform import Compose
+from spatiallm.prompts import DETECT_TYPE_PROMPT
 from spatiallm.constants import (
     LAYOUT_S_PLACEHOLDER,
     LAYOUT_E_PLACEHOLDER,
+    LAYOUT_PLACEHOLDER,
     POINT_S_TOKEN,
     POINT_E_TOKEN,
     POINT_CLOUD_PLACEHOLDER,
@@ -32,6 +35,7 @@ class SpatialLMPlugin:
         do_augmentation: bool = False,
         random_rotation: bool = False,
         random_scale: bool = False,
+        replace_prompt_with_type: Optional[str] = None,
     ):
         self.point_token = point_token
 
@@ -41,6 +45,7 @@ class SpatialLMPlugin:
         self.do_augmentation = do_augmentation
         self.random_rotation = random_rotation
         self.random_scale = random_scale
+        self.replace_prompt_with_type = replace_prompt_with_type
         self.augmentation = Compose(
             [
                 dict(type="RandomColorGrayScale", p=0.05),
@@ -117,6 +122,7 @@ class SpatialLMPlugin:
         self,
         batched_messages: Sequence[Dict[str, str]],
         point_clouds: Sequence["PointCloudInput"],
+        layouts: Optional[Sequence[Union[str, "Layout"]]] = None,
     ) -> dict:
         input_dict = {"point_clouds": None}  # default key
 
@@ -166,8 +172,11 @@ class SpatialLMPlugin:
         assert len(batched_messages) == len(point_clouds_data)
         processed_messages = []
         for mi, messages in enumerate(batched_messages):
+            current_layout = layouts[mi] if layouts is not None else None
             processed_messages.append(
-                self.process_messages(messages, [transformations[mi]])
+                self.process_messages(
+                    messages, [transformations[mi]], layout_input=current_layout
+                )
             )
 
         if len(processed_messages) != 0:
@@ -205,29 +214,37 @@ class SpatialLMPlugin:
         self,
         messages: Sequence[Dict[str, str]],
         transformations: Sequence[dict],
+        layout_input: Optional[Union[str, "Layout"]] = None,
     ) -> List[Dict[str, str]]:
         r"""
         Pre-processes input messages to sync the transformation between point cloud and layout.
         """
         self._validate_input(transformations)
         messages = deepcopy(messages)
+
+        if self.replace_prompt_with_type:
+            possible_prompts = DETECT_TYPE_PROMPT.get(self.replace_prompt_with_type, [])
+            if possible_prompts:
+                new_prompt_text = random.choice(possible_prompts)
+                for message in messages:
+                    if message["role"] == "user":
+                        content = message["content"]
+                        if POINT_CLOUD_PLACEHOLDER in content:
+                            message["content"] = (
+                                f"{POINT_CLOUD_PLACEHOLDER}\n{new_prompt_text}"
+                            )
+
         num_point_tokens = 0
 
         for message in messages:
             content = message["content"]
-            if LAYOUT_S_PLACEHOLDER in content and LAYOUT_E_PLACEHOLDER in content:
-                transformation = transformations[num_point_tokens - 1]
+
+            def process_layout_obj(layout, transformation):
                 min_bound = transformation["min_bound"]
                 center_pt = transformation["center_pt"]
                 scaling = transformation["scaling"]
                 transformed_points = transformation["transformed_points"]
-                layout_start_pos = content.index(LAYOUT_S_PLACEHOLDER)
-                layout_end_pos = content.index(LAYOUT_E_PLACEHOLDER)
-                layout_content = content[
-                    layout_start_pos + len(LAYOUT_S_PLACEHOLDER) : layout_end_pos
-                ]
-                # parse layout_content
-                layout = Layout(layout_content)
+
                 # transformation augmentation
                 layout.translate(-center_pt)
                 layout.scale(scaling)
@@ -237,8 +254,29 @@ class SpatialLMPlugin:
                 layout.reorder_entities()
                 layout.translate(-min_bound)
                 layout.normalize_and_discretize(self.num_bins)
-                # use special tokens format <int> to represent the layout
-                new_layout_content = layout.to_token_string()
+                return layout.to_token_string()
+
+            if LAYOUT_PLACEHOLDER in content and layout_input is not None:
+                transformation = transformations[num_point_tokens - 1]
+                if isinstance(layout_input, Layout):
+                    layout = deepcopy(layout_input)
+                else:
+                    layout = Layout(layout_input)
+
+                new_layout_content = process_layout_obj(layout, transformation)
+                content = content.replace(LAYOUT_PLACEHOLDER, new_layout_content, 1)
+                message["content"] = content
+
+            if LAYOUT_S_PLACEHOLDER in content and LAYOUT_E_PLACEHOLDER in content:
+                transformation = transformations[num_point_tokens - 1]
+                layout_start_pos = content.index(LAYOUT_S_PLACEHOLDER)
+                layout_end_pos = content.index(LAYOUT_E_PLACEHOLDER)
+                layout_content = content[
+                    layout_start_pos + len(LAYOUT_S_PLACEHOLDER) : layout_end_pos
+                ]
+                # parse layout_content
+                layout = Layout(layout_content)
+                new_layout_content = process_layout_obj(layout, transformation)
                 content = content.replace(
                     f"{LAYOUT_S_PLACEHOLDER}{layout_content}{LAYOUT_E_PLACEHOLDER}",
                     new_layout_content,
@@ -264,6 +302,7 @@ class SpatialLMPlugin:
         self,
         point_clouds: Sequence["PointCloudInput"],
         batch_prompts: Sequence[List[int]],
+        layouts: Optional[Sequence[Union[str, "Layout"]]] = None,
     ) -> Dict[str, Union[List[dict]]]:
         r"""
         Builds batched multimodal inputs for VLMs.
@@ -275,11 +314,14 @@ class SpatialLMPlugin:
             processor: a processor for pre-processing images and videos
         """
         self._validate_input(point_clouds)
-        return self._get_mm_inputs(batch_prompts, point_clouds)
+        return self._get_mm_inputs(batch_prompts, point_clouds, layouts=layouts)
 
 
 def get_mm_plugin(
     point_token: str = "<|point_pad|>",
+    replace_prompt_with_type: Optional[str] = None,
     **kwargs,
 ) -> "SpatialLMPlugin":
-    return SpatialLMPlugin(point_token, **kwargs)
+    return SpatialLMPlugin(
+        point_token, replace_prompt_with_type=replace_prompt_with_type, **kwargs
+    )
