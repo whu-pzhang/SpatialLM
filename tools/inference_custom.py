@@ -150,7 +150,7 @@ def generate_layout(
     attention_mask = torch.ones_like(input_ids)
 
     streamer = TextIteratorStreamer(
-        tokenizer, timeout=20.0, skip_prompt=True, skip_special_tokens=True
+        tokenizer, timeout=20.0, skip_prompt=True, skip_special_tokens=False
     )
 
     # Set pad_token_id for generation

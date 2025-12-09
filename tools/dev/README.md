@@ -73,3 +73,15 @@ The `process_messages` function ensures that the layout labels are consistent wi
 6.  **Content Replacement**: The original human-readable layout string in the message is replaced with the new token-based string.
 
 This process ensures that the model learns to predict layouts that are perfectly aligned with the visual point cloud input, using the efficient grid token vocabulary.
+
+
+## Results
+
+| Model                  | Dataset        | F1 @ 0.5 IoU | F1 @ 0.75 IoU | Note      |
+| ---------------------- | -------------- | ------------ | ------------- | --------- |
+| SpatialLM1.1-Qwen-0.5B | stru3d_clipped | 86.71        | 80.98         | epochs=50 |
+|                        |                | 88.39        | 86.06         |           |
+|                        |                | 77.63        | 68.20         |           |
+| SpatialLM1.2-Qwen-0.5B | stru3d_clipped | 77.40        | 72.40         | epochs=50 |
+|                        |                | 74.95        | 72.55         |           |
+|                        |                | 70.53        | 64.61         |           |

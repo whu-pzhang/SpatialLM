@@ -1,5 +1,5 @@
 ### model
-model_name_or_path: weights/SpatialLM1.2-Qwen-0.5B-G1280
+model_name_or_path: weights/SpatialLM1.2-Qwen-0.5B-G1600
 # model_name_or_path: manycore-research/SpatialLM1.1-Qwen-0.5B
 trust_remote_code: true
 
@@ -10,22 +10,22 @@ freeze_point_tower: false
 train_proj_only: false
 
 ### dataset
-dataset: stru3d_train # 
-dataset_dir: data/stru3d_clipped #
+dataset: spatiallm_scene_train # 
+dataset_dir: data/SpatialLM-Dataset/clipped #
 template: spatiallm_qwen # spatiallm_qwen, spatiallm_llama
-num_bins: 1280
+num_bins: 1600
 do_augmentation: false
 random_rotation: true
 random_scale: true
-replace_prompt_with_type: "arch" # "all", "arch" or "object"
+# replace_prompt_with_type: "arch" # "all", "arch" or "object"
 cutoff_len: 8192 # 输入的最大token数，超过会被截断
 overwrite_cache: true # 覆盖缓存的训练和评估数据集
 preprocessing_num_workers: 8
 dataloader_num_workers: 8
-save_dir: data/stru3d_clipped/stru3d-g1280
+save_dir: data/SpatialLM-Dataset/clipped/scene-g1600
 
 ### output
-output_dir: work_dirs/pretrain/spatiallm1.2-0.5b-g1280-pretrain-stru3d-e50
+output_dir: work_dirs/pretrain/spatiallm1.2-0.5b-g1600-pretrain-spatiallm-dataset-e10
 logging_steps: 10
 save_steps: 500
 overwrite_output_dir: false
@@ -38,7 +38,7 @@ learning_rate: 1.0e-4 # to be more aggressive: try to change the learning rate t
 adam_beta1: 0.9
 adam_beta2: 0.99
 adam_epsilon: 1.0e-8
-num_train_epochs: 100 # total training epochs
+num_train_epochs: 10 # total training epochs
 lr_scheduler_type: cosine
 warmup_ratio: 0.03
 pure_bf16: true
@@ -50,7 +50,7 @@ report_to: tensorboard # choices: [none, wandb, tensorboard, swanlab]
 max_new_tokens: 4096
 
 ### eval
-eval_dataset: stru3d_val
+eval_dataset: spatiallm_scene_val
 # val_size: 0.0001 # 验证集相对所使用的训练数据集的大小。取值在 [0,1) 之间。
 per_device_eval_batch_size: 1
 eval_strategy: steps

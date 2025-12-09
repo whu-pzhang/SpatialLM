@@ -77,7 +77,9 @@ def find_rooms(walls):
 
     rooms = []
     for i, cycle in enumerate(cycles):
-        room_id = f"room_{i}"
+        if len(cycle) < 4:
+            continue
+        room_id = f"room_{len(rooms)}"
         # Heuristic for room type: just generic "Room" for now as we can't infer semantic type from geometry easily without more context
         rooms.append(Room(id=room_id, wall_ids=cycle, type="Room"))
 

@@ -107,7 +107,7 @@ def visualize_scene(
             plt.text(
                 cx,
                 cy,
-                room_id,
+                f"room_{room_id}",
                 fontsize=12,
                 fontweight="bold",
                 color="black",
